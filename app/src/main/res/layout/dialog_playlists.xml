@@ -38,7 +38,7 @@
         android:id="@+id/playlist_duplicate"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_below="@+id/newPlaylist"
+        android:layout_below="@id/customPlaylistSearch"
         android:layout_marginHorizontal="@dimen/video_item_search_padding"
         android:layout_marginBottom="@dimen/video_item_search_padding"
         android:gravity="center"
@@ -62,9 +62,38 @@
         android:id="@+id/playlist_list"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_below="@+id/separator"
+        android:layout_below="@id/playlist_duplicate"
         android:scrollbars="vertical"
         android:visibility="gone"
         tools:listitem="@layout/list_playlist_mini_item"
         tools:visibility="visible" />
+
+    <RelativeLayout
+        android:id="@+id/customPlaylistSearch"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/newPlaylist"
+        android:layout_alignStart="@id/newPlaylist"
+        android:layout_marginLeft="12dp"
+        android:layout_marginRight="12dp">
+
+        <EditText
+            android:id="@+id/customPlaylistSearchBox"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_toStartOf="@id/customPlaylistSearchIcon"
+            android:ems="10"
+            android:hint="@string/search"
+            android:inputType="text" />
+
+        <ImageView
+            android:id="@+id/customPlaylistSearchIcon"
+            android:layout_width="48dp"
+            android:layout_height="28dp"
+            android:layout_alignParentRight="true"
+            android:layout_centerVertical="true"
+            android:src="@drawable/ic_search"
+            tools:ignore="ContentDescription,RtlHardcoded" />
+    </RelativeLayout>
+
 </RelativeLayout>

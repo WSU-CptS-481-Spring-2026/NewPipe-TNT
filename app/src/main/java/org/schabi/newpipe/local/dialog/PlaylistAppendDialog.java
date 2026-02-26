@@ -6,6 +6,7 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -14,14 +15,18 @@ import androidx.annotation.Nullable;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.jakewharton.rxbinding4.widget.RxTextView;
+
 import org.schabi.newpipe.NewPipeDatabase;
 import org.schabi.newpipe.R;
 import org.schabi.newpipe.database.playlist.PlaylistDuplicatesEntry;
 import org.schabi.newpipe.database.stream.model.StreamEntity;
 import org.schabi.newpipe.local.LocalItemListAdapter;
 import org.schabi.newpipe.local.playlist.LocalPlaylistManager;
+import org.schabi.newpipe.local.playlist.LocalPlaylistSearch;
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
 import io.reactivex.rxjava3.disposables.CompositeDisposable;
@@ -29,9 +34,12 @@ import io.reactivex.rxjava3.disposables.CompositeDisposable;
 public final class PlaylistAppendDialog extends PlaylistDialog {
     private static final String TAG = PlaylistAppendDialog.class.getCanonicalName();
 
+    private EditText playlistSearchInput;
     private RecyclerView playlistRecyclerView;
     private LocalItemListAdapter playlistAdapter;
     private TextView playlistDuplicateIndicator;
+
+    private LocalPlaylistSearch playlistSearch;
 
     private final CompositeDisposable playlistDisposables = new CompositeDisposable();
 
@@ -63,6 +71,14 @@ public final class PlaylistAppendDialog extends PlaylistDialog {
 
         final LocalPlaylistManager playlistManager =
                 new LocalPlaylistManager(NewPipeDatabase.getInstance(requireContext()));
+
+        playlistSearch = new LocalPlaylistSearch();
+
+        playlistSearchInput = view.findViewById(R.id.customPlaylistSearchBox);
+        playlistDisposables.add(RxTextView.textChanges(playlistSearchInput)
+                .debounce(200, TimeUnit.MILLISECONDS)
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(this::onPlaylistSearchChange));
 
         playlistAdapter = new LocalItemListAdapter(getActivity());
         playlistAdapter.setSelectedListener(selectedItem -> {
@@ -109,6 +125,18 @@ public final class PlaylistAppendDialog extends PlaylistDialog {
     // Helper
     //////////////////////////////////////////////////////////////////////////*/
 
+    /**
+     * Filter the playlists on search query changed.
+     *
+     * @param searchQuery the search query
+     */
+    private void onPlaylistSearchChange(@NonNull final CharSequence searchQuery) {
+        final List<PlaylistDuplicatesEntry> searchedPlaylists =
+                playlistSearch.search(searchQuery.toString());
+        playlistAdapter.clearStreamItemList();
+        playlistAdapter.addItems(searchedPlaylists);
+    }
+
     /** Display create playlist dialog. */
     public void openCreatePlaylistDialog() {
         if (getStreamEntities() == null || !isAdded()) {
@@ -130,10 +158,15 @@ public final class PlaylistAppendDialog extends PlaylistDialog {
                 && playlistRecyclerView != null
                 && playlistDuplicateIndicator != null) {
             playlistAdapter.clearStreamItemList();
+
+            playlistSearch.receivePlaylists(playlists);
+
             playlistAdapter.addItems(playlists);
             playlistRecyclerView.setVisibility(View.VISIBLE);
             playlistDuplicateIndicator.setVisibility(
                     anyPlaylistContainsDuplicates(playlists) ? View.VISIBLE : View.GONE);
+
+            onPlaylistSearchChange(playlistSearchInput.getText());
         }
     }
 
