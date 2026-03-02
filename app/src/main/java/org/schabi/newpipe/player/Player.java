@@ -275,9 +275,9 @@ public final class Player implements PlaybackListener, Listener {
     //region Constructor
 
     /**
-     * @param service the service this player resides in
-     * @param mediaSession used to build the {@link MediaSessionPlayerUi}, lives in the service and
-     *                     could possibly be reused with multiple player instances
+     * @param service          the service this player resides in
+     * @param mediaSession     used to build the {@link MediaSessionPlayerUi}, lives in the service and
+     *                         could possibly be reused with multiple player instances
      * @param sessionConnector used to build the {@link MediaSessionPlayerUi}, lives in the service
      *                         and could possibly be reused with multiple player instances
      */
@@ -431,8 +431,8 @@ public final class Player implements PlaybackListener, Listener {
                                 if (oldPlayQueue == null) {
                                     newPlayQueue = new SinglePlayQueue(playQueueItem);
 
-                                // else we add the timestamped stream behind the current video
-                                // and start playing it.
+                                    // else we add the timestamped stream behind the current video
+                                    // and start playing it.
                                 } else {
                                     oldPlayQueue.enqueueNext(playQueueItem, true);
                                     oldPlayQueue.offsetIndex(1);
@@ -603,6 +603,10 @@ public final class Player implements PlaybackListener, Listener {
                               final boolean playOnReady) {
         destroyPlayer();
         initPlayer(playOnReady);
+
+        // Feature #12726 DEBUG: Force the flag to true on the actual instance
+        queue.setStopAfterCurrent(true);
+
         final boolean playbackSkipSilence = getPrefs().getBoolean(getContext().getString(
                 R.string.playback_skip_silence_key), getPlaybackSkipSilence());
         final PlaybackParameters savedParameters = retrievePlaybackParametersFromPrefs(this);
@@ -1438,9 +1442,20 @@ public final class Player implements PlaybackListener, Listener {
         }
 
         // Refresh the playback if there is a transition to the next video
+        // Refresh the playback if there is a transition to the next video
         final int newIndex = newPosition.mediaItemIndex;
         switch (discontinuityReason) {
             case DISCONTINUITY_REASON_AUTO_TRANSITION:
+                // DEBUG LOG:
+                Log.d("481_DEBUG", "Transition Detected! Flag is: " + (playQueue != null ? playQueue.isStopAfterCurrent() : "NULL"));
+
+                if (playQueue != null && playQueue.isStopAfterCurrent()) {
+                    Log.d("481_DEBUG", "STOPPING PLAYER NOW");
+                    playQueue.setStopAfterCurrent(false);
+                    pause();
+                }
+                break; // Ensure there is a break here to test
+                // allow fallthrough to REMOVE case
             case DISCONTINUITY_REASON_REMOVE:
                 // When player is in single repeat mode and a period transition occurs,
                 // we need to register a view count here since no metadata has changed

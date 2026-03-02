@@ -49,6 +49,9 @@ public abstract class PlayQueue implements Serializable {
     private transient Flowable<PlayQueueEvent> broadcastReceiver;
     private transient boolean disposed = false;
 
+    // Feature #12726: Flag to determine if playback should stop after the current track
+    private transient boolean stopAfterCurrent = true;
+
     PlayQueue(final int index, final List<PlayQueueItem> startWith) {
         streams = new ArrayList<>(startWith);
 
@@ -109,6 +112,23 @@ public abstract class PlayQueue implements Serializable {
     /*//////////////////////////////////////////////////////////////////////////
     // Readonly ops
     //////////////////////////////////////////////////////////////////////////*/
+
+    // Feature #12726: Getter for stopAfterCurrent flag
+    /**
+     * @return true if playback should stop after the current track ends.
+     */
+    public boolean isStopAfterCurrent() {
+        return stopAfterCurrent;
+    }
+
+    // Feature #12726: Setter for stopAfterCurrent flag
+    /**
+     * Sets whether playback should stop after the current track.
+     * @param stopAfterCurrent true to stop, false to continue
+     */
+    public void setStopAfterCurrent(boolean stopAfterCurrent) {
+        this.stopAfterCurrent = stopAfterCurrent;
+    }
 
     /**
      * @return the current index that should be played
@@ -572,4 +592,3 @@ public abstract class PlayQueue implements Serializable {
         }
     }
 }
-
