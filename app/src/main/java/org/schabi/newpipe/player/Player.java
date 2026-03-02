@@ -604,9 +604,6 @@ public final class Player implements PlaybackListener, Listener {
         destroyPlayer();
         initPlayer(playOnReady);
 
-        // Feature #12726 DEBUG: Force the flag to true on the actual instance
-        queue.setStopAfterCurrent(true);
-
         final boolean playbackSkipSilence = getPrefs().getBoolean(getContext().getString(
                 R.string.playback_skip_silence_key), getPlaybackSkipSilence());
         final PlaybackParameters savedParameters = retrievePlaybackParametersFromPrefs(this);
@@ -1446,11 +1443,8 @@ public final class Player implements PlaybackListener, Listener {
         final int newIndex = newPosition.mediaItemIndex;
         switch (discontinuityReason) {
             case DISCONTINUITY_REASON_AUTO_TRANSITION:
-                // DEBUG LOG:
-                Log.d("481_DEBUG", "Transition Detected! Flag is: " + (playQueue != null ? playQueue.isStopAfterCurrent() : "NULL"));
 
                 if (playQueue != null && playQueue.isStopAfterCurrent()) {
-                    Log.d("481_DEBUG", "STOPPING PLAYER NOW");
                     playQueue.setStopAfterCurrent(false);
                     pause();
                 }

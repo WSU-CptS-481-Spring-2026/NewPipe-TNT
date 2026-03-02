@@ -50,7 +50,7 @@ public abstract class PlayQueue implements Serializable {
     private transient boolean disposed = false;
 
     // Feature #12726: Flag to determine if playback should stop after the current track
-    private transient boolean stopAfterCurrent = true;
+    private transient boolean stopAfterCurrent = false;
 
     PlayQueue(final int index, final List<PlayQueueItem> startWith) {
         streams = new ArrayList<>(startWith);
