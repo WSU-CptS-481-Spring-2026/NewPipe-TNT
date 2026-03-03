@@ -83,6 +83,9 @@ public class InfoItemBuilder {
                     : new PlaylistInfoItemHolder(this, parent);
             case COMMENT ->
                     throw new IllegalArgumentException("Comments should be rendered using Compose");
+            case RENDERERLIST ->
+                    throw new IllegalArgumentException(
+                            "Not Implemented Here or using Compose");
         };
     }
 
