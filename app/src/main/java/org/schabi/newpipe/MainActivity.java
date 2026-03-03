@@ -680,10 +680,20 @@ public class MainActivity extends AppCompatActivity {
     private void onHomeButtonPressed() {
         final var fm = getSupportFragmentManager();
 
-        if (!NavigationHelper.tryGotoSearchFragment(fm)) {
-            // If search fragment wasn't found in the backstack go to the main fragment
-            NavigationHelper.gotoMainFragment(fm);
+        if (NavigationHelper.tryGotoFragment(fm,
+                NavigationHelper.SEARCH_FRAGMENT_TAG)) {
+            // search fragment was found in the backstack go to the fragment
+            return;
         }
+
+        if (NavigationHelper.tryGotoFragment(fm,
+                NavigationHelper.SUBSCRIPTIONS_FRAGMENT_TAG)) {
+            // subscriptions fragment was found in the backstack go to the fragment
+            return;
+        }
+
+        // If fragments not were not found above go to main fragment
+        NavigationHelper.gotoMainFragment(fm);
     }
 
     /*//////////////////////////////////////////////////////////////////////////
@@ -758,7 +768,8 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
-        final Fragment fragment = getSupportFragmentManager()
+        final FragmentManager fragmentManager = getSupportFragmentManager();
+        final Fragment fragment = fragmentManager
                 .findFragmentById(R.id.fragment_holder);
         if (fragment instanceof MainFragment) {
             getSupportActionBar().setDisplayHomeAsUpEnabled(false);
