@@ -75,6 +75,8 @@ public final class NavigationHelper {
     public static final String MAIN_FRAGMENT_TAG = "main_fragment_tag";
     public static final String SEARCH_FRAGMENT_TAG = "search_fragment_tag";
 
+    public static final String SUBSCRIPTIONS_FRAGMENT_TAG = "subscriptions_fragment_tag";
+
     private static final String TAG = NavigationHelper.class.getSimpleName();
 
     private NavigationHelper() {
@@ -364,15 +366,18 @@ public final class NavigationHelper {
                 .commit();
     }
 
-    public static boolean tryGotoSearchFragment(final FragmentManager fragmentManager) {
+    public static boolean tryGotoFragment(final FragmentManager fragmentManager,
+                                          final String fragmentTag) {
         if (MainActivity.DEBUG) {
             for (int i = 0; i < fragmentManager.getBackStackEntryCount(); i++) {
-                Log.d("NavigationHelper", "tryGoToSearchFragment() [" + i + "]"
+                Log.d("NavigationHelper", "tryGoToFragment(tagFragment = "
+                        + fragmentTag
+                        + ") [" + i + "]"
                         + " = [" + fragmentManager.getBackStackEntryAt(i) + "]");
             }
         }
 
-        return fragmentManager.popBackStackImmediate(SEARCH_FRAGMENT_TAG, 0);
+        return fragmentManager.popBackStackImmediate(fragmentTag, 0);
     }
 
     public static void openSearchFragment(final FragmentManager fragmentManager,
@@ -575,7 +580,7 @@ public final class NavigationHelper {
     public static void openSubscriptionFragment(final FragmentManager fragmentManager) {
         defaultTransaction(fragmentManager)
                 .replace(R.id.fragment_holder, new SubscriptionFragment())
-                .addToBackStack(null)
+                .addToBackStack(SUBSCRIPTIONS_FRAGMENT_TAG)
                 .commit();
     }
 
