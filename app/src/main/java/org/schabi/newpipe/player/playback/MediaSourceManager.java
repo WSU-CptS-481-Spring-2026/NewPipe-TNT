@@ -379,18 +379,16 @@ public class MediaSourceManager {
     }
 
     private void loadImmediate() {
-        if (DEBUG) {
-            Log.d(TAG, "MediaSource - loadImmediate() called");
-        }
+
         final ItemsToLoad itemsToLoad = getItemsToLoad(playQueue);
         if (itemsToLoad == null) {
             return;
         }
 
-        // Evict the previous items being loaded to free up memory, before start loading new ones
         maybeClearLoaders();
 
         maybeLoadItem(itemsToLoad.center);
+
         for (final PlayQueueItem item : itemsToLoad.neighbors) {
             maybeLoadItem(item);
         }
@@ -406,71 +404,76 @@ public class MediaSourceManager {
 
         if (!loadingItems.contains(item) && isCorrectionNeeded(item)) {
             if (DEBUG) {
-                Log.d(TAG, "MediaSource - Loading=[" + item.getTitle() + "] "
-                        + "with url=[" + item.getUrl() + "]");
+                Log.d(TAG, "MediaSource - Loading=[" + item.getTitle()
+                        + "] with url=[" + item.getUrl() + "]");
             }
 
             loadingItems.add(item);
             final Disposable loader = getLoadedMediaSource(item)
                     .observeOn(AndroidSchedulers.mainThread())
-                    /* No exception handling since getLoadedMediaSource guarantees nonnull return */
-                    .subscribe(mediaSource -> onMediaSourceReceived(item, mediaSource));
+                    .subscribe(
+                            mediaSource -> onMediaSourceReceived(item, mediaSource),
+                            throwable -> {
+                                // Standard error log is fine here, just remove the "BUG_FIX" tag
+                                Log.e(TAG, "Failed to load item: " + item.getTitle(), throwable);
+                                onMediaSourceReceived(item, FailedMediaSource.of(item, new StreamInfoLoadException(throwable)));
+                            }
+                    );
             loaderReactor.add(loader);
         }
     }
 
     private Single<ManagedMediaSource> getLoadedMediaSource(@NonNull final PlayQueueItem stream) {
         return stream.getStream()
-                .map(streamInfo -> Optional
-                        .ofNullable(playbackListener.sourceOf(stream, streamInfo))
-                        .<ManagedMediaSource>flatMap(source ->
-                                MediaItemTag.from(source.getMediaItem())
-                                        .map(tag -> {
-                                            final int serviceId = streamInfo.getServiceId();
-                                            final long expiration = System.currentTimeMillis()
-                                                    + getCacheExpirationMillis(serviceId);
-                                            return new LoadedMediaSource(source, tag, stream,
-                                                    expiration);
-                                        })
-                        )
-                        .orElseGet(() -> {
-                            final String message = "Unable to resolve source from stream info. "
-                                    + "URL: " + stream.getUrl()
-                                    + ", audio count: " + streamInfo.getAudioStreams().size()
-                                    + ", video count: " + streamInfo.getVideoOnlyStreams().size()
-                                    + ", " + streamInfo.getVideoStreams().size();
-                            return FailedMediaSource.of(stream,
-                                    new MediaSourceResolutionException(message));
-                        })
-                )
+                .map(streamInfo -> {
+
+                    try {
+                        return Optional.ofNullable(playbackListener.sourceOf(stream, streamInfo))
+                                .<ManagedMediaSource>flatMap(source ->
+                                        MediaItemTag.from(source.getMediaItem())
+                                                .map(tag -> {
+                                                    final int serviceId = streamInfo.getServiceId();
+                                                    final long expiration = System.currentTimeMillis()
+                                                            + getCacheExpirationMillis(serviceId);
+                                                    return new LoadedMediaSource(source, tag, stream, expiration);
+                                                })
+                                )
+                                .orElseGet(() -> {
+                                    return FailedMediaSource.of(stream, new MediaSourceResolutionException("Source resolution failed"));
+                                });
+                    } catch (Exception e) {
+                        return FailedMediaSource.of(stream, new StreamInfoLoadException(e));
+                    }
+                })
+
                 .onErrorReturn(throwable -> {
                     if (throwable instanceof ExtractionException) {
                         return FailedMediaSource.of(stream, new StreamInfoLoadException(throwable));
                     }
-                    // Non-source related error expected here (e.g. network),
-                    // should allow retry shortly after the error.
-                    final long allowRetryIn = TimeUnit.MILLISECONDS.convert(3,
-                            TimeUnit.SECONDS);
-                    return FailedMediaSource.of(stream, new Exception(throwable), allowRetryIn);
+                    final long allowRetryIn = TimeUnit.MILLISECONDS.convert(3, TimeUnit.SECONDS);
+                    return FailedMediaSource.of(stream, new StreamInfoLoadException(throwable), allowRetryIn);
                 });
     }
 
     private void onMediaSourceReceived(@NonNull final PlayQueueItem item,
                                        @NonNull final ManagedMediaSource mediaSource) {
-        if (DEBUG) {
-            Log.d(TAG, "MediaSource - Loaded=[" + item.getTitle()
-                    + "] with url=[" + item.getUrl() + "]");
-        }
+
 
         loadingItems.remove(item);
-
         final int itemIndex = playQueue.indexOf(item);
-        // Only update the playlist timeline for items at the current index or after.
+
+        //  existing fix attempt
+        if (mediaSource instanceof FailedMediaSource
+                && itemIndex == playQueue.getIndex()
+                && playQueue.size() > 1) {
+
+            Log.e("BUG_FIX_ACTION", "Skipping bad item: " + item.getTitle());
+            playQueue.remove(itemIndex);
+            loadImmediate();
+            return;
+        }
+
         if (isCorrectionNeeded(item)) {
-            if (DEBUG) {
-                Log.d(TAG, "MediaSource - Updating index=[" + itemIndex + "] with "
-                        + "title=[" + item.getTitle() + "] at url=[" + item.getUrl() + "]");
-            }
             playlist.update(itemIndex, mediaSource, removeMediaSourceHandler,
                     this::maybeSynchronizePlayer);
         }

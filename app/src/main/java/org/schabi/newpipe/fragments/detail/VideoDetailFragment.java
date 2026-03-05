@@ -881,8 +881,24 @@ public final class VideoDetailFragment
                             openVideoPlayerAutoFullscreen();
                         }
                     }
-                }, throwable -> showError(new ErrorInfo(throwable, UserAction.REQUESTED_STREAM,
-                        url == null ? "no url" : url, serviceId, url)));
+                }, throwable -> {
+                    // [BUG FIX #13226]
+                    // If the first video fails (Content Unavailable) but we have a full queue,
+                    // FORCE the player to start. The MediaSourceManager will handle skipping the bad video.
+                    if (playQueue != null && !playQueue.isEmpty()) {
+                        Log.e(TAG, "Worker failed for first item, but queue exists. Forcing player start.", throwable);
+
+                        // Treat this as a successful "autoplay" trigger
+                        if (isAutoplayEnabled()) {
+                            openVideoPlayerAutoFullscreen();
+                            return; // Exit here so we don't show the Sad Face
+                        }
+                    }
+
+                    // Original Error Handling (Sad Face)
+                    showError(new ErrorInfo(throwable, UserAction.REQUESTED_STREAM,
+                            url == null ? "no url" : url, serviceId, url));
+                });
     }
 
     /*//////////////////////////////////////////////////////////////////////////
@@ -1165,7 +1181,11 @@ public final class VideoDetailFragment
             playerHolder.startService(autoPlayEnabled, this);
             return;
         }
-        if (currentInfo == null) {
+
+        // [BUG FIX]
+        // OLD: if (currentInfo == null) { return; }
+        // NEW: If info is missing but we have a queue (e.g. Play All), proceed!
+        if (currentInfo == null && (playQueue == null || playQueue.isEmpty())) {
             return;
         }
 
