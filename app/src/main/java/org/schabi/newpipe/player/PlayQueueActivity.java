@@ -150,6 +150,20 @@ public final class PlayQueueActivity extends AppCompatActivity
             this.player.setRecovery();
             NavigationHelper.playOnMainPlayer(this, player.getPlayQueue(), true);
             return true;
+        } else if (itemId == R.id.action_stop_after_current) {
+            if (player != null && player.getPlayQueue() != null) {
+                // 1. Get the current state
+                boolean currentState = player.getPlayQueue().isStopAfterCurrent();
+
+                // 2. Flip it (if it was true, make it false; if false, make it true)
+                boolean newState = !currentState;
+                player.getPlayQueue().setStopAfterCurrent(newState);
+
+                // 3. Dynamic feedback based on the new state
+                String message = newState ? "Stopping after this song" : "Autoplay resumed";
+                android.widget.Toast.makeText(this, message, android.widget.Toast.LENGTH_SHORT).show();
+            }
+            return true;
         } else if (itemId == R.id.action_switch_popup) {
             if (PermissionHelper.isPopupEnabledElseAsk(this)) {
                 this.player.setRecovery();

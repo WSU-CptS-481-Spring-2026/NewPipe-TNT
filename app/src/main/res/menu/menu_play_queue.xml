@@ -10,7 +10,6 @@
         android:visible="true"
         app:showAsAction="ifRoom" />
 
-
     <item
         android:id="@+id/action_playback_speed"
         android:title="1x"
@@ -49,5 +48,12 @@
         android:id="@+id/action_switch_main"
         android:orderInCategory="3"
         android:title="@string/switch_to_main"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_stop_after_current"
+        android:orderInCategory="4"
+        android:title="Stop after current"
+        android:icon="@drawable/ic_pause"
         app:showAsAction="never" />
 </menu>
