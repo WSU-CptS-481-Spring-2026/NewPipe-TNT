@@ -76,9 +76,6 @@ class LocalPlaylistSearchTest {
 
         search.receivePlaylists(allPlaylists)
 
-        // In all cases, any with abcd in any case should match.
-        // Since FuzzyScore doesn't take into account case, ABCD DEFG gets sorted to top due to
-        // alphabetical fallback.
         val resultsLower = search.search("abcd")
         assert(validPlaylists.all { it in resultsLower })
         assert(resultsLower.all { it in validPlaylists })
