@@ -56,6 +56,8 @@ public class StatisticsPlaylistFragment
     private final CompositeDisposable disposables = new CompositeDisposable();
     @State
     Parcelable itemsListState;
+    @State
+    boolean showFullyWatched = true;
     private StatisticSortMode sortMode = StatisticSortMode.LAST_PLAYED;
 
     private StatisticPlaylistControlBinding headerBinding;
@@ -77,8 +79,20 @@ public class StatisticsPlaylistFragment
             default:
                 return null;
         }
+
         Collections.sort(results, comparator.reversed());
-        return results;
+
+        if (showFullyWatched) {
+            return results;
+        }
+
+        final List<StreamStatisticsEntry> filteredResults = new ArrayList<>();
+        for (final StreamStatisticsEntry entry : results) {
+            if (!isFullyWatched(entry)) {
+                filteredResults.add(entry);
+            }
+        }
+        return filteredResults;
     }
 
     ///////////////////////////////////////////////////////////////////////////
@@ -263,12 +277,14 @@ public class StatisticsPlaylistFragment
 
         itemListAdapter.clearStreamItemList();
 
-        if (result.isEmpty()) {
+        final List<StreamStatisticsEntry> processedResult = processResult(result);
+
+        if (processedResult == null || processedResult.isEmpty()) {
             showEmptyState();
             return;
         }
 
-        itemListAdapter.addItems(processResult(result));
+        itemListAdapter.addItems(processedResult);
         if (itemsListState != null && itemsList.getLayoutManager() != null) {
             itemsList.getLayoutManager().onRestoreInstanceState(itemsListState);
             itemsListState = null;
@@ -277,6 +293,16 @@ public class StatisticsPlaylistFragment
         PlayButtonHelper.initPlaylistControlClickListener(activity, playlistControlBinding, this);
 
         headerBinding.sortButton.setOnClickListener(view -> toggleSortMode());
+
+        headerBinding.showFullyWatchedCheckbox.setOnCheckedChangeListener(null);
+        headerBinding.showFullyWatchedCheckbox.setChecked(showFullyWatched);
+        headerBinding.showFullyWatchedCheckbox.setOnCheckedChangeListener(
+                (buttonView, isChecked) -> {
+                    if (showFullyWatched != isChecked) {
+                        showFullyWatched = isChecked;
+                        startLoading(true);
+                    }
+                });
 
         hideLoading();
     }
@@ -382,6 +408,19 @@ public class StatisticsPlaylistFragment
             }
         }
         return new SinglePlayQueue(streamInfoItems, index);
+    }
+
+
+    private boolean isFullyWatched(final StreamStatisticsEntry entry) {
+        final long durationSeconds = entry.getStreamEntity().getDuration();
+        if (durationSeconds <= 0) {
+            return false;
+        }
+
+        final long durationMillis = durationSeconds * 1000L;
+        final long remainingMillis = durationMillis - entry.getProgressMillis();
+
+        return remainingMillis <= 3000L;
     }
 
     private enum StatisticSortMode {

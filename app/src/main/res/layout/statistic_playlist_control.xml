@@ -37,6 +37,16 @@
             tools:ignore="RtlHardcoded" />
     </RelativeLayout>
 
+    <CheckBox
+        android:id="@+id/showFullyWatchedCheckbox"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:layout_marginTop="4dp"
+        android:layout_marginBottom="4dp"
+        android:text="@string/feed_show_watched"
+        android:checked="true" />
+
     <include
         android:id="@+id/playlist_control"
         layout="@layout/playlist_control" />
