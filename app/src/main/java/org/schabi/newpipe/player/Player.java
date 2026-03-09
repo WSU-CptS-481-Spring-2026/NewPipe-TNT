@@ -615,10 +615,21 @@ public final class Player implements PlaybackListener, Listener {
         playQueue = queue;
         playQueue.init();
         reloadPlayQueueManager();
+        playQueue.setRepeatMode(
+                PlayerHelper.retreiveRepeatModeFromPrefs(this, playQueue.getRepeatMode()));
+        if (playQueue.isShuffled()
+                != PlayerHelper.retreiveShuffleModeFromPrefs(this, playQueue.isShuffled())) {
+            if (playQueue.isShuffled()) {
+                playQueue.unshuffle();
+            } else {
+                playQueue.shuffle();
+            }
+        }
 
         UIs.call(PlayerUi::initPlayback);
 
         simpleExoPlayer.setVolume(isMuted() ? 0 : 1);
+        simpleExoPlayer.setRepeatMode(playQueue.getRepeatMode());
         notifyQueueUpdateToListeners();
     }
 
@@ -1269,26 +1280,26 @@ public final class Player implements PlaybackListener, Listener {
     }
 
     public void cycleNextRepeatMode() {
-        if (!exoPlayerIsNull()) {
-            @RepeatMode final int repeatMode;
-            switch (simpleExoPlayer.getRepeatMode()) {
-                case REPEAT_MODE_OFF:
-                    repeatMode = REPEAT_MODE_ONE;
-                    break;
-                case REPEAT_MODE_ONE:
-                    repeatMode = REPEAT_MODE_ALL;
-                    break;
-                case REPEAT_MODE_ALL:
-                default:
-                    repeatMode = REPEAT_MODE_OFF;
-                    break;
-            }
-            simpleExoPlayer.setRepeatMode(repeatMode);
+        if (!exoPlayerIsNull() && playQueue != null) {
+            @RepeatMode final int prevRepeatMode = playQueue.getRepeatMode();
+            @RepeatMode final int newRepeatMode = switch (prevRepeatMode) {
+                case REPEAT_MODE_OFF -> REPEAT_MODE_ONE;
+                case REPEAT_MODE_ONE -> REPEAT_MODE_ALL;
+                default -> REPEAT_MODE_OFF;
+            };
+            playQueue.setRepeatMode(newRepeatMode);
+            simpleExoPlayer.setRepeatMode(newRepeatMode);
+            PlayerHelper.saveRepeatModeToPrefs(this, newRepeatMode);
         }
     }
 
     @Override
     public void onRepeatModeChanged(@RepeatMode final int repeatMode) {
+        if (playQueue != null) {
+            playQueue.setRepeatMode(repeatMode);
+            PlayerHelper.saveRepeatModeToPrefs(this, repeatMode);
+        }
+
         if (DEBUG) {
             Log.d(TAG, "ExoPlayer - onRepeatModeChanged() called with: "
                     + "repeatMode = [" + repeatMode + "]");
@@ -1310,6 +1321,8 @@ public final class Player implements PlaybackListener, Listener {
             } else {
                 playQueue.unshuffle();
             }
+
+            PlayerHelper.saveShuffleModeToPrefs(this, shuffleModeEnabled);
         }
 
         UIs.call(playerUi -> playerUi.onShuffleModeEnabledChanged(shuffleModeEnabled));

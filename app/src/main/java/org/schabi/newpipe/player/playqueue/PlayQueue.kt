@@ -1,5 +1,6 @@
 package org.schabi.newpipe.player.playqueue
 
+import com.google.android.exoplayer2.Player.REPEAT_MODE_OFF
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.core.BackpressureStrategy
 import io.reactivex.rxjava3.core.Flowable
@@ -196,6 +197,11 @@ abstract class PlayQueue internal constructor(
      */
     val isShuffled: Boolean
         get() = backup.isNotEmpty()
+
+    /**
+     * The current repeat mode of the player.
+     */
+    var repeatMode: Int = REPEAT_MODE_OFF
 
     /**
      * @return an immutable view of the play queue

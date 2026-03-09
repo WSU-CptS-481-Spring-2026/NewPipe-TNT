@@ -29,6 +29,7 @@ import com.google.android.exoplayer2.trackselection.ExoTrackSelection;
 import com.google.android.exoplayer2.ui.AspectRatioFrameLayout;
 import com.google.android.exoplayer2.ui.AspectRatioFrameLayout.ResizeMode;
 import com.google.android.exoplayer2.ui.CaptionStyleCompat;
+import com.google.android.exoplayer2.Player.RepeatMode;
 
 import org.schabi.newpipe.R;
 import org.schabi.newpipe.extractor.InfoItem;
@@ -451,6 +452,47 @@ public final class PlayerHelper {
                 .putFloat(player.getContext().getString(R.string.playback_pitch_key), pitch)
                 .putBoolean(player.getContext().getString(R.string.playback_skip_silence_key),
                         skipSilence)
+                .apply();
+    }
+
+    private static boolean isRememberRepeatAndShuffleEnabled(final Context context) {
+        return PreferenceManager.getDefaultSharedPreferences(context)
+                .getBoolean(context.getString(R.string.remember_repeat_and_shuffle_key), false);
+    }
+
+    @RepeatMode
+    public static int retreiveRepeatModeFromPrefs(final Player player,
+                                                  @RepeatMode final int currentMode) {
+        if (!isRememberRepeatAndShuffleEnabled(player.getContext())) {
+            return currentMode;
+        }
+        return player.getPrefs().getInt("queueing_repeat_mode", currentMode);
+    }
+
+    public static void saveRepeatModeToPrefs(final Player player, final int repeatMode) {
+        if (!isRememberRepeatAndShuffleEnabled(player.getContext())) {
+            return;
+        }
+        player.getPrefs().edit()
+                .putInt("queueing_repeat_mode", repeatMode)
+                .apply();
+    }
+
+    public static boolean retreiveShuffleModeFromPrefs(final Player player,
+                                                       final boolean currentMode) {
+        if (!isRememberRepeatAndShuffleEnabled(player.getContext())) {
+            return currentMode;
+        }
+        return player.getPrefs().getBoolean("queueing_shuffle_enabled", currentMode);
+    }
+
+    public static void saveShuffleModeToPrefs(final Player player, final boolean shuffleMode) {
+        if (!isRememberRepeatAndShuffleEnabled(player.getContext())) {
+            return;
+        }
+
+        player.getPrefs().edit()
+                .putBoolean("queueing_shuffle_enabled", shuffleMode)
                 .apply();
     }
 
