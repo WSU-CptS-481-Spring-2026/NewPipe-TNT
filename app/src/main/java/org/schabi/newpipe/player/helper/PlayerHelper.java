@@ -456,17 +456,19 @@ public final class PlayerHelper {
     }
 
     private static boolean isRememberRepeatAndShuffleEnabled(final Context context) {
-        return PreferenceManager.getDefaultSharedPreferences(context)
-                .getBoolean(context.getString(R.string.remember_repeat_and_shuffle_key), false);
+        return getPreferences(context)
+                .getBoolean(context.getString(
+                        R.string.remember_repeat_and_shuffle_key), false);
     }
 
     @RepeatMode
-    public static int retreiveRepeatModeFromPrefs(final Player player,
+    public static int retrieveRepeatModeFromPrefs(final Player player,
                                                   @RepeatMode final int currentMode) {
         if (!isRememberRepeatAndShuffleEnabled(player.getContext())) {
             return currentMode;
         }
-        return player.getPrefs().getInt("queueing_repeat_mode", currentMode);
+        return player.getPrefs().getInt(
+                player.getContext().getString(R.string.queueing_repeat_mode), currentMode);
     }
 
     public static void saveRepeatModeToPrefs(final Player player, final int repeatMode) {
@@ -478,12 +480,13 @@ public final class PlayerHelper {
                 .apply();
     }
 
-    public static boolean retreiveShuffleModeFromPrefs(final Player player,
+    public static boolean retrieveShuffleModeFromPrefs(final Player player,
                                                        final boolean currentMode) {
         if (!isRememberRepeatAndShuffleEnabled(player.getContext())) {
             return currentMode;
         }
-        return player.getPrefs().getBoolean("queueing_shuffle_enabled", currentMode);
+        return player.getPrefs().getBoolean(
+                player.getContext().getString(R.string.queueing_shuffle_enabled), currentMode);
     }
 
     public static void saveShuffleModeToPrefs(final Player player, final boolean shuffleMode) {

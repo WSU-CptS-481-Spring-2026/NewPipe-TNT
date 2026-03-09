@@ -616,9 +616,10 @@ public final class Player implements PlaybackListener, Listener {
         playQueue.init();
         reloadPlayQueueManager();
         playQueue.setRepeatMode(
-                PlayerHelper.retreiveRepeatModeFromPrefs(this, playQueue.getRepeatMode()));
+                PlayerHelper.retrieveRepeatModeFromPrefs(this, playQueue.getRepeatMode()));
         if (playQueue.isShuffled()
-                != PlayerHelper.retreiveShuffleModeFromPrefs(this, playQueue.isShuffled())) {
+                != PlayerHelper.retrieveShuffleModeFromPrefs(this, playQueue.isShuffled())
+                && playQueue.size() > 2) {
             if (playQueue.isShuffled()) {
                 playQueue.unshuffle();
             } else {
@@ -630,6 +631,7 @@ public final class Player implements PlaybackListener, Listener {
 
         simpleExoPlayer.setVolume(isMuted() ? 0 : 1);
         simpleExoPlayer.setRepeatMode(playQueue.getRepeatMode());
+        simpleExoPlayer.setShuffleModeEnabled(playQueue.isShuffled());
         notifyQueueUpdateToListeners();
     }
 
