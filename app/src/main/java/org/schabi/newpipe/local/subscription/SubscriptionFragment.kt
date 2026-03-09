@@ -76,6 +76,10 @@ class SubscriptionFragment : BaseStateFragment<SubscriptionState>() {
     @JvmField
     var feedGroupsCarouselState: Parcelable? = null
 
+    @State
+    @JvmField
+    var isLayoutSetup = false
+
     init {
         setHasOptionsMenu(true)
     }
@@ -211,7 +215,10 @@ class SubscriptionFragment : BaseStateFragment<SubscriptionState>() {
             }
         }
 
-        setupInitialLayout()
+        if (!isLayoutSetup) {
+            setupInitialLayout()
+            isLayoutSetup = true
+        }
     }
 
     private fun setupInitialLayout() {
