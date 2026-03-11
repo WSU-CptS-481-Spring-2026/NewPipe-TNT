@@ -70,6 +70,7 @@ import org.schabi.newpipe.fragments.BackPressable;
 import org.schabi.newpipe.fragments.MainFragment;
 import org.schabi.newpipe.fragments.detail.VideoDetailFragment;
 import org.schabi.newpipe.fragments.list.search.SearchFragment;
+import org.schabi.newpipe.fragments.list.playlist.PlaylistFragment;
 import org.schabi.newpipe.local.feed.notifications.NotificationWorker;
 import org.schabi.newpipe.player.Player;
 import org.schabi.newpipe.player.event.OnKeyDownListener;
@@ -679,6 +680,16 @@ public class MainActivity extends AppCompatActivity {
      */
     private void onHomeButtonPressed() {
         final var fm = getSupportFragmentManager();
+
+        // get the currently displayed fragment in the main fragment holder
+        final Fragment currentFragment = fm.findFragmentById(R.id.fragment_holder);
+
+        // for playlist screens, use normal Android back behavior so the user returns
+        // to the immediate parent screen instead of skipping back to search
+        if (currentFragment instanceof PlaylistFragment) {
+            onBackPressed();
+            return;
+        }
 
         if (NavigationHelper.tryGotoFragment(fm,
                 NavigationHelper.SEARCH_FRAGMENT_TAG)) {
