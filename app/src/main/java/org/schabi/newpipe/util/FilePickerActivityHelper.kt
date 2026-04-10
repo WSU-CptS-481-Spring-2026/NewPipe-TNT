@@ -10,6 +10,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
 import androidx.loader.content.Loader
 import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.SortedList
@@ -22,24 +23,29 @@ import org.schabi.newpipe.R
 class FilePickerActivityHelper : FilePickerActivity() {
     private var currentFragment: CustomFilePickerFragment? = null
 
+    private val onBackPressedCallback = object : OnBackPressedCallback(true) {
+        override fun handleOnBackPressed() {
+            // If at top most level, default onBack behavior
+            if (currentFragment!!.isBackTop()) {
+                this.isEnabled = false
+                onBackPressedDispatcher.onBackPressed()
+                return;
+            }
+
+            currentFragment!!.goUp()
+        }
+    }
+
     public override fun onCreate(savedInstanceState: Bundle?) {
+        onBackPressedDispatcher.addCallback(this, onBackPressedCallback)
+
         if (ThemeHelper.isLightThemeSelected(this)) {
             this.setTheme(R.style.FilePickerThemeLight)
         } else {
             this.setTheme(R.style.FilePickerThemeDark)
         }
-        super.onCreate(savedInstanceState)
-    }
 
-    @Override
-    override fun onBackPressed() {
-        // If at top most level, normal behaviour
-        if (currentFragment!!.isBackTop()) {
-            super.onBackPressed()
-        } else {
-            // Else go up
-            currentFragment!!.goUp()
-        }
+        super.onCreate(savedInstanceState)
     }
 
     override fun getFragment(
