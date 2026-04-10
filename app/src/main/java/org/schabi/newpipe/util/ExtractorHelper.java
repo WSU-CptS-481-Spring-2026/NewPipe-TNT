@@ -42,6 +42,7 @@ import org.schabi.newpipe.extractor.NewPipe;
 import org.schabi.newpipe.extractor.Page;
 import org.schabi.newpipe.extractor.channel.ChannelInfo;
 import org.schabi.newpipe.extractor.channel.tabs.ChannelTabInfo;
+import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.kiosk.KioskInfo;
 import org.schabi.newpipe.extractor.linkhandler.ListLinkHandler;
 import org.schabi.newpipe.extractor.playlist.PlaylistInfo;
@@ -51,8 +52,13 @@ import org.schabi.newpipe.extractor.stream.StreamInfoItem;
 import org.schabi.newpipe.extractor.suggestion.SuggestionExtractor;
 import org.schabi.newpipe.util.text.TextLinkifier;
 
+import java.io.IOException;
+import java.net.URL;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import io.reactivex.rxjava3.core.Maybe;
 import io.reactivex.rxjava3.core.Single;
@@ -100,13 +106,16 @@ public final class ExtractorHelper {
 
     public static Single<List<String>> suggestionsFor(final int serviceId, final String query) {
         checkServiceId(serviceId);
-        return Single.fromCallable(() -> {
-            final SuggestionExtractor extractor = NewPipe.getService(serviceId)
-                    .getSuggestionExtractor();
-            return extractor != null
-                    ? extractor.suggestionList(query)
-                    : Collections.emptyList();
-        });
+        return Single.fromCallable(() -> getSuggestionsFor(serviceId, query));
+    }
+
+    private static List<String> getSuggestionsFor(final int serviceId, final String query)
+            throws ExtractionException, IOException {
+        final SuggestionExtractor extractor = NewPipe.getService(serviceId)
+                .getSuggestionExtractor();
+        return extractor != null
+                ? extractor.suggestionList(query)
+                : Collections.emptyList();
     }
 
     public static Single<StreamInfo> getStreamInfo(final int serviceId, final String url,
@@ -229,20 +238,27 @@ public final class ExtractorHelper {
             @NonNull final String url,
             @NonNull final InfoCache.Type cacheType) {
         checkServiceId(serviceId);
-        return Maybe.defer(() -> {
-            //noinspection unchecked
-            final I info = (I) CACHE.getFromKey(serviceId, url, cacheType);
-            if (MainActivity.DEBUG) {
-                Log.d(TAG, "loadFromCache() called, info > " + info);
-            }
+        return Maybe.defer(() -> cacheLoad(serviceId, url, cacheType));
+    }
 
-            // Only return info if it's not null (it is cached)
-            if (info != null) {
-                return Maybe.just(info);
-            }
+    private static <I extends Info> Maybe<I> cacheLoad(
+            final int serviceId,
+            @NonNull final String url,
+            @NonNull final InfoCache.Type cacheType) {
+        //noinspection unchecked
+        final I info = (I) CACHE.getFromKey(serviceId, url, cacheType);
+        logIfDebugging("loadFromCache() called, info > " + info);
+        return maybeLoad(info);
+    }
 
-            return Maybe.empty();
-        });
+    private static <I extends Info> Maybe<I> maybeLoad(final I info) {
+        return info != null ? Maybe.just(info) : Maybe.empty();
+    }
+
+    private static void logIfDebugging(final String message) {
+        if (MainActivity.DEBUG) {
+            Log.d(TAG, message);
+        }
     }
 
     public static boolean isCached(final int serviceId,
@@ -272,39 +288,12 @@ public final class ExtractorHelper {
                                               final View metaInfoSeparator,
                                               final CompositeDisposable disposables) {
         final Context context = metaInfoTextView.getContext();
-        if (metaInfos == null || metaInfos.isEmpty()
-                || !PreferenceManager.getDefaultSharedPreferences(context).getBoolean(
-                context.getString(R.string.show_meta_info_key), true)) {
+        if (!shouldMetaInfoBeVisible(metaInfos, context)) {
             metaInfoTextView.setVisibility(View.GONE);
             metaInfoSeparator.setVisibility(View.GONE);
-
         } else {
             final StringBuilder stringBuilder = new StringBuilder();
-            for (final MetaInfo metaInfo : metaInfos) {
-                if (!isNullOrEmpty(metaInfo.getTitle())) {
-                    stringBuilder.append("<b>").append(metaInfo.getTitle()).append("</b>")
-                            .append(Localization.DOT_SEPARATOR);
-                }
-
-                String content = metaInfo.getContent().getContent().trim();
-                if (content.endsWith(".")) {
-                    content = content.substring(0, content.length() - 1); // remove . at end
-                }
-                stringBuilder.append(content);
-
-                for (int i = 0; i < metaInfo.getUrls().size(); i++) {
-                    if (i == 0) {
-                        stringBuilder.append(Localization.DOT_SEPARATOR);
-                    } else {
-                        stringBuilder.append("<br/><br/>");
-                    }
-
-                    stringBuilder
-                            .append("<a href=\"").append(metaInfo.getUrls().get(i)).append("\">")
-                            .append(capitalizeIfAllUppercase(metaInfo.getUrlTexts().get(i).trim()))
-                            .append("</a>");
-                }
-            }
+            metaInfos.forEach((metaInfo) -> buildMetaInfo(stringBuilder, metaInfo));
 
             metaInfoSeparator.setVisibility(View.VISIBLE);
             TextLinkifier.fromHtml(metaInfoTextView, stringBuilder.toString(),
@@ -313,17 +302,103 @@ public final class ExtractorHelper {
         }
     }
 
+    private static boolean shouldMetaInfoBeVisible(@Nullable final List<MetaInfo> metaInfos,
+                                                    final Context context) {
+        return !isNullOrEmpty(metaInfos)
+                && PreferenceManager.getDefaultSharedPreferences(context).getBoolean(
+                context.getString(R.string.show_meta_info_key), true);
+    }
+
+    private static void buildMetaInfo(final StringBuilder stringBuilder, final MetaInfo metaInfo) {
+        if (!isNullOrEmpty(metaInfo.getTitle())) {
+            appendTag(stringBuilder, "b", metaInfo.getTitle());
+            stringBuilder.append(Localization.DOT_SEPARATOR);
+        }
+
+        String content = metaInfo.getContent().getContent().trim();
+        content = trimFinalDot(content);
+        stringBuilder.append(content);
+
+        boolean firstInfo = true;
+        for (URLInfo urlInfo : getUrlInfos(metaInfo)) {
+            if (firstInfo) {
+                stringBuilder.append(Localization.DOT_SEPARATOR);
+                firstInfo = false;
+            } else {
+                appendSelfClosingTag(stringBuilder, "br");
+                appendSelfClosingTag(stringBuilder, "br");
+            }
+
+            final Map<String, String> attrs = new HashMap<>();
+            attrs.put("href", urlInfo.url.toString());
+            String linkContent = capitalizeIfAllUppercase(urlInfo.text.trim());
+
+            appendTag(stringBuilder, "a", linkContent, attrs);
+        }
+    }
+
+    private record URLInfo(URL url, String text) {}
+
+    private static List<URLInfo> getUrlInfos(MetaInfo metaInfo) {
+        final List<URLInfo> urlInfos = new ArrayList<>();
+
+        for (int i = 0; i < metaInfo.getUrls().size(); i++) {
+            urlInfos.add(new URLInfo(metaInfo.getUrls().get(i), metaInfo.getUrlTexts().get(i)));
+        }
+
+        return urlInfos;
+    }
+
+    private static void appendSelfClosingTag(final StringBuilder stringBuilder, final String tag) {
+        stringBuilder.append("<").append(tag).append("/>");
+    }
+
+    private static void appendTag(final StringBuilder stringBuilder, final String tag,
+                                  final String content) {
+        appendTag(stringBuilder, tag, content, Collections.emptyMap());
+    }
+
+    private static void appendTag(final StringBuilder stringBuilder, final String tag,
+                                  final String content, final Map<String, String> attrs) {
+        // Opening tag
+        stringBuilder.append("<").append(tag);
+        if (!attrs.isEmpty()) {
+            // Attributes
+            for (final Map.Entry<String, String> entry : attrs.entrySet()) {
+                stringBuilder.append(" ").append(entry.getKey())
+                        .append("=\"").append(entry.getValue()).append("\"");
+            }
+        }
+        stringBuilder.append(">");
+
+        // Content
+        stringBuilder.append(content);
+
+        // Closing tag
+        stringBuilder.append("</").append(tag).append(">");
+    }
+
+    private static String trimFinalDot(final String text) {
+        if (!text.endsWith(".")) {
+            return text;
+        }
+
+        return text.substring(0, text.length() - 1); // remove . at end
+    }
+
     private static String capitalizeIfAllUppercase(final String text) {
-        for (int i = 0; i < text.length(); i++) {
-            if (Character.isLowerCase(text.charAt(i))) {
-                return text; // there is at least a lowercase letter -> not all uppercase
+        for (final char c : text.toCharArray()) {
+            if (Character.isLowerCase(c)) {
+                return text;
             }
         }
 
-        if (text.isEmpty()) {
-            return text;
-        } else {
-            return text.substring(0, 1).toUpperCase() + text.substring(1).toLowerCase();
-        }
+        return capitalize(text);
+    }
+
+    private static String capitalize(final String text) {
+        return text.isEmpty() ?
+                text :
+                text.substring(0, 1).toUpperCase() + text.substring(1).toLowerCase();
     }
 }
