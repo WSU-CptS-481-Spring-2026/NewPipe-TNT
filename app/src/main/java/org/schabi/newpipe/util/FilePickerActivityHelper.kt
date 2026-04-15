@@ -29,7 +29,7 @@ class FilePickerActivityHelper : FilePickerActivity() {
             if (currentFragment!!.isBackTop()) {
                 this.isEnabled = false
                 onBackPressedDispatcher.onBackPressed()
-                return;
+                return
             }
 
             currentFragment!!.goUp()
@@ -73,7 +73,7 @@ class FilePickerActivityHelper : FilePickerActivity() {
     /*//////////////////////////////////////////////////////////////////////////
     // Internal
     ////////////////////////////////////////////////////////////////////////// */
-    class CustomFilePickerFragment : FilePickerFragment() {
+    inner class CustomFilePickerFragment : FilePickerFragment() {
         override fun onCreateView(
             inflater: LayoutInflater,
             container: ViewGroup?,
@@ -88,39 +88,35 @@ class FilePickerActivityHelper : FilePickerActivity() {
         ): RecyclerView.ViewHolder {
             val viewHolder = super.onCreateViewHolder(parent, viewType)
 
-            val view = viewHolder.itemView.findViewById<View?>(android.R.id.text1)
-            if (view is TextView) {
-                view.setTextSize(
-                    TypedValue.COMPLEX_UNIT_PX,
-                    resources.getDimension(R.dimen.file_picker_items_text_size)
-                )
-            }
+            val view = viewHolder.itemView.findViewById<TextView?>(android.R.id.text1)
+            view?.setTextSize(
+                TypedValue.COMPLEX_UNIT_PX,
+                resources.getDimension(R.dimen.file_picker_items_text_size)
+            )
 
             return viewHolder
         }
 
         override fun onClickOk(view: View) {
-            if (mode == MODE_NEW_FILE && newFileName.isEmpty()) {
-                if (mToast != null) {
-                    mToast.cancel()
-                }
-                mToast = Toast.makeText(
-                    activity,
-                    R.string.file_name_empty_error,
-                    Toast.LENGTH_SHORT
-                )
-                mToast.show()
+            // default behavior check
+            if (mode != MODE_NEW_FILE || newFileName.isNotEmpty()) {
+                super.onClickOk(view)
                 return
             }
 
-            super.onClickOk(view)
+            if (mToast != null) {
+                mToast.cancel()
+            }
+            mToast = Toast.makeText(
+                activity,
+                R.string.file_name_empty_error,
+                Toast.LENGTH_SHORT
+            )
+            mToast.show()
         }
 
         override fun isItemVisible(file: File): Boolean {
-            if (file.isDirectory() && file.isHidden()) {
-                return true
-            }
-            return super.isItemVisible(file)
+            return (file.isDirectory() && file.isHidden()) || super.isItemVisible(file)
         }
 
         val backTop: File
@@ -156,10 +152,7 @@ class FilePickerActivityHelper : FilePickerActivity() {
     companion object {
         @JvmStatic
         fun isOwnFileUri(context: Context, uri: Uri): Boolean {
-            if (uri.authority == null) {
-                return false
-            }
-            return uri.authority!!.startsWith(context.packageName)
+            return uri.authority != null && uri.authority!!.startsWith(context.packageName)
         }
     }
 }
