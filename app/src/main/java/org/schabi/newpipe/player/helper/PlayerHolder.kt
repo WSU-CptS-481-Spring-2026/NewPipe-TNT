@@ -175,7 +175,7 @@ object PlayerHolder {
             if (playerService != null && playerService?.player != null) {
                 // notify the main activity that binding the service has completed and that there is
                 // a player, so that it can open the bottom mini-player
-                NavigationHelper.sendPlayerStartedEvent(localBinder.service)
+                localBinder.service?.let { NavigationHelper.sendPlayerStartedEvent(it) }
             }
         }
     }

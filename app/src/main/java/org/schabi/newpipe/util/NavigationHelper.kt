@@ -18,6 +18,8 @@ import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.FragmentTransaction
 import androidx.preference.PreferenceManager
 import com.jakewharton.processphoenix.ProcessPhoenix
+import java.util.Optional
+import java.util.function.Function
 import org.schabi.newpipe.MainActivity
 import org.schabi.newpipe.NewPipeDatabase.close
 import org.schabi.newpipe.R
@@ -65,8 +67,6 @@ import org.schabi.newpipe.player.playqueue.PlayQueue
 import org.schabi.newpipe.settings.SettingsActivity
 import org.schabi.newpipe.settings.SettingsV2Activity
 import org.schabi.newpipe.util.external_communication.ShareUtils
-import java.util.Optional
-import java.util.function.Function
 
 object NavigationHelper {
     const val MAIN_FRAGMENT_TAG: String = "main_fragment_tag"
@@ -78,6 +78,7 @@ object NavigationHelper {
     // Players
     ////////////////////////////////////////////////////////////////////////// */
     /* INTENT */
+    @JvmStatic
     fun <T> getPlayerIntent(
         context: Context,
         targetClazz: Class<T>,
@@ -85,9 +86,11 @@ object NavigationHelper {
         playerIntentType: PlayerIntentType
     ): Intent {
         val cacheKey = Optional.ofNullable<PlayQueue?>(playQueue)
-            .map<String?>(Function { queue: PlayQueue? ->
-                SerializedCache.getInstance().put<PlayQueue?>(queue!!, PlayQueue::class.java)
-            })
+            .map<String?>(
+                Function { queue: PlayQueue? ->
+                    SerializedCache.getInstance().put<PlayQueue?>(queue!!, PlayQueue::class.java)
+                }
+            )
             .orElse(null)
         return Intent(context, targetClazz)
             .putExtra(Player.PLAY_QUEUE_KEY, cacheKey)
@@ -128,8 +131,12 @@ object NavigationHelper {
         val item = playQueue.item
         if (item != null) {
             openVideoDetailFragment(
-                activity, activity.getSupportFragmentManager(),
-                item.serviceId, item.url, item.title, playQueue,
+                activity,
+                activity.getSupportFragmentManager(),
+                item.serviceId,
+                item.url,
+                item.title,
+                playQueue,
                 false
             )
         }
@@ -145,7 +152,10 @@ object NavigationHelper {
         if (item != null) {
             openVideoDetail(
                 context,
-                item.serviceId, item.url, item.title, playQueue,
+                item.serviceId,
+                item.url,
+                item.title,
+                playQueue,
                 switchingPlayers
             )
         }
@@ -164,7 +174,9 @@ object NavigationHelper {
         Toast.makeText(context, R.string.popup_playing_toast, Toast.LENGTH_SHORT).show()
 
         val intent = NavigationHelper.getPlayerIntent<PlayerService>(
-            context, PlayerService::class.java, queue,
+            context,
+            PlayerService::class.java,
+            queue,
             PlayerIntentType.AllOthers
         )
             .putExtra(Player.PLAYER_TYPE, PlayerType.POPUP)
@@ -182,7 +194,9 @@ object NavigationHelper {
             .show()
 
         val intent = NavigationHelper.getPlayerIntent<PlayerService>(
-            context, PlayerService::class.java, queue,
+            context,
+            PlayerService::class.java,
+            queue,
             PlayerIntentType.AllOthers
         )
             .putExtra(Player.PLAYER_TYPE, PlayerType.AUDIO)
@@ -210,7 +224,9 @@ object NavigationHelper {
         //   the former doesn't. (note that enqueue can be triggered when nothing is playing only
         //   by long pressing the video detail fragment, playlist or channel controls
         val intent = NavigationHelper.getPlayerIntent<PlayerService>(
-            context, PlayerService::class.java, queue,
+            context,
+            PlayerService::class.java,
+            queue,
             PlayerIntentType.Enqueue
         )
             .putExtra(Player.RESUME_PLAYBACK, false)
@@ -265,7 +281,8 @@ object NavigationHelper {
             ListHelper.getUrlAndNonTorrentStreams<AudioStream?>(audioStreams)
         if (audioStreamsForExternalPlayers.isEmpty()) {
             Toast.makeText(
-                context, R.string.no_audio_streams_available_for_external_players,
+                context,
+                R.string.no_audio_streams_available_for_external_players,
                 Toast.LENGTH_SHORT
             ).show()
             return
@@ -298,7 +315,8 @@ object NavigationHelper {
             )
         if (videoStreamsForExternalPlayers.isEmpty()) {
             Toast.makeText(
-                context, R.string.no_video_streams_available_for_external_players,
+                context,
+                R.string.no_video_streams_available_for_external_players,
                 Toast.LENGTH_SHORT
             ).show()
             return
@@ -319,38 +337,16 @@ object NavigationHelper {
         artist: String?,
         stream: Stream
     ) {
-        val deliveryMethod = stream.getDeliveryMethod()
-        val mimeType: String
-
-        if (!stream.isUrl() || deliveryMethod == DeliveryMethod.TORRENT) {
+        if (!stream.isUrl() || stream.getDeliveryMethod() == DeliveryMethod.TORRENT) {
             Toast.makeText(
-                context, R.string.selected_stream_external_player_not_supported,
+                context,
+                R.string.selected_stream_external_player_not_supported,
                 Toast.LENGTH_SHORT
             ).show()
             return
         }
 
-        when (deliveryMethod) {
-            DeliveryMethod.PROGRESSIVE_HTTP -> if (stream.getFormat() == null) {
-                if (stream is AudioStream) {
-                    mimeType = "audio/*"
-                } else if (stream is VideoStream) {
-                    mimeType = "video/*"
-                } else {
-                    // This should never be reached, because subtitles are not opened in
-                    // external players
-                    return
-                }
-            } else {
-                mimeType = stream.getFormat()!!.getMimeType()
-            }
-
-            DeliveryMethod.HLS -> mimeType = "application/x-mpegURL"
-            DeliveryMethod.DASH -> mimeType = "application/dash+xml"
-            DeliveryMethod.SS -> mimeType = "application/vnd.ms-sstr+xml"
-            else ->                 // Torrent streams are not exposed to external players
-                mimeType = ""
-        }
+        val mimeType = getMimeType(stream) ?: return
 
         val intent = Intent()
         intent.setAction(Intent.ACTION_VIEW)
@@ -361,6 +357,25 @@ object NavigationHelper {
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
         resolveActivityOrAskToInstall(context, intent)
+    }
+
+    private fun getMimeType(stream: Stream): String? {
+        return when (stream.getDeliveryMethod()) {
+            DeliveryMethod.PROGRESSIVE_HTTP -> when {
+                stream.getFormat() != null -> stream.getFormat()!!.getMimeType()
+                stream is AudioStream -> "audio/*"
+                stream is VideoStream -> "video/*"
+                else -> null
+            }
+
+            DeliveryMethod.HLS -> "application/x-mpegURL"
+
+            DeliveryMethod.DASH -> "application/dash+xml"
+
+            DeliveryMethod.SS -> "application/vnd.ms-sstr+xml"
+
+            else -> ""
+        }
     }
 
     fun resolveActivityOrAskToInstall(
@@ -378,7 +393,8 @@ object NavigationHelper {
                                 context,
                                 context.getString(R.string.vlc_package)
                             )
-                        })
+                        }
+                    )
                     .setNegativeButton(
                         R.string.cancel,
                         DialogInterface.OnClickListener { dialog: DialogInterface?, which: Int ->
@@ -386,7 +402,8 @@ object NavigationHelper {
                                 "NavigationHelper",
                                 "You unlocked a secret unicorn."
                             )
-                        })
+                        }
+                    )
                     .show()
             } else {
                 Toast.makeText(context, R.string.no_player_found_toast, Toast.LENGTH_LONG).show()
@@ -401,8 +418,10 @@ object NavigationHelper {
     private fun defaultTransaction(fragmentManager: FragmentManager): FragmentTransaction {
         return fragmentManager.beginTransaction()
             .setCustomAnimations(
-                R.animator.custom_fade_in, R.animator.custom_fade_out,
-                R.animator.custom_fade_in, R.animator.custom_fade_out
+                R.animator.custom_fade_in,
+                R.animator.custom_fade_out,
+                R.animator.custom_fade_in,
+                R.animator.custom_fade_out
             )
     }
 
@@ -430,8 +449,11 @@ object NavigationHelper {
         if (MainActivity.DEBUG) {
             for (i in 0..<fragmentManager.getBackStackEntryCount()) {
                 Log.d(
-                    "NavigationHelper", ("tryGoToSearchFragment() [" + i + "]"
-                            + " = [" + fragmentManager.getBackStackEntryAt(i) + "]")
+                    "NavigationHelper",
+                    (
+                        "tryGoToSearchFragment() [" + i + "]" +
+                            " = [" + fragmentManager.getBackStackEntryAt(i) + "]"
+                        )
                 )
             }
         }
@@ -442,7 +464,8 @@ object NavigationHelper {
     @JvmStatic
     fun openSearchFragment(
         fragmentManager: FragmentManager,
-        serviceId: Int, searchString: String?
+        serviceId: Int,
+        searchString: String?
     ) {
         defaultTransaction(fragmentManager)
             .replace(R.id.fragment_holder, SearchFragment.getInstance(serviceId, searchString))
@@ -497,19 +520,19 @@ object NavigationHelper {
         val onVideoDetailFragmentReady =
             object : RunnableWithVideoDetailFragment {
                 override fun run(detailFragment: VideoDetailFragment?) {
-                expandMainPlayer(detailFragment!!.requireActivity())
-                detailFragment.setAutoPlay(autoPlay)
-                if (switchingPlayers) {
-                    // Situation when user switches from players to main player. All needed data is
-                    // here, we can start watching (assuming newQueue equals playQueue).
-                    // Starting directly in fullscreen if the previous player type was popup.
-                    detailFragment.openVideoPlayer(
-                        playerType == PlayerType.POPUP
-                                || PlayerHelper.isStartMainPlayerFullscreenEnabled(context)
-                    )
-                } else {
-                    detailFragment.selectAndLoadVideo(serviceId, url!!, title, playQueue)
-                }
+                    expandMainPlayer(detailFragment!!.requireActivity())
+                    detailFragment.setAutoPlay(autoPlay)
+                    if (switchingPlayers) {
+                        // Situation when user switches from players to main player. All needed data is
+                        // here, we can start watching (assuming newQueue equals playQueue).
+                        // Starting directly in fullscreen if the previous player type was popup.
+                        detailFragment.openVideoPlayer(
+                            playerType == PlayerType.POPUP ||
+                                PlayerHelper.isStartMainPlayerFullscreenEnabled(context)
+                        )
+                    } else {
+                        detailFragment.selectAndLoadVideo(serviceId, url!!, title, playQueue)
+                    }
                     detailFragment.scrollToTop()
                 }
             }
@@ -535,7 +558,8 @@ object NavigationHelper {
     @JvmStatic
     fun openChannelFragment(
         fragmentManager: FragmentManager,
-        serviceId: Int, url: String?,
+        serviceId: Int,
+        url: String?,
         name: String
     ) {
         defaultTransaction(fragmentManager)
@@ -552,7 +576,9 @@ object NavigationHelper {
     ) {
         // For some reason `getParentFragmentManager()` doesn't work, but this does.
         openChannelFragment(
-            activity.getSupportFragmentManager(), item.getServiceId(), uploaderUrl,
+            activity.getSupportFragmentManager(),
+            item.getServiceId(),
+            uploaderUrl,
             item.getUploaderName()
         )
     }
@@ -560,7 +586,7 @@ object NavigationHelper {
     /**
      * Opens the comment author channel fragment, if the [CommentsInfoItem.getUploaderUrl]
      * of `comment` is non-null. Shows a UI-error snackbar if something goes wrong.
-     * 
+     *
      * @param context the context to use for opening the fragment
      * @param comment the comment whose uploader/author will be opened
      */
@@ -574,8 +600,10 @@ object NavigationHelper {
         try {
             val activity = context.findFragmentActivity()
             openChannelFragment(
-                activity.getSupportFragmentManager(), comment.getServiceId(),
-                comment.getUploaderUrl(), comment.getUploaderName()
+                activity.getSupportFragmentManager(),
+                comment.getServiceId(),
+                comment.getUploaderUrl(),
+                comment.getUploaderName()
             )
         } catch (e: Exception) {
             showUiErrorSnackbar(context, "Opening channel fragment", e)
@@ -585,7 +613,8 @@ object NavigationHelper {
     @JvmStatic
     fun openPlaylistFragment(
         fragmentManager: FragmentManager,
-        serviceId: Int, url: String?,
+        serviceId: Int,
+        url: String?,
         name: String
     ) {
         defaultTransaction(fragmentManager)
@@ -594,9 +623,11 @@ object NavigationHelper {
             .commit()
     }
 
+    @JvmStatic
     @JvmOverloads
     fun openFeedFragment(
-        fragmentManager: FragmentManager, groupId: Long = FeedGroupEntity.GROUP_ALL_ID,
+        fragmentManager: FragmentManager,
+        groupId: Long = FeedGroupEntity.GROUP_ALL_ID,
         groupName: String? = null
     ) {
         defaultTransaction(fragmentManager)
@@ -624,7 +655,8 @@ object NavigationHelper {
     @JvmStatic
     @Throws(ExtractionException::class)
     fun openKioskFragment(
-        fragmentManager: FragmentManager, serviceId: Int,
+        fragmentManager: FragmentManager,
+        serviceId: Int,
         kioskId: String?
     ) {
         defaultTransaction(fragmentManager)
@@ -636,11 +668,13 @@ object NavigationHelper {
     @JvmStatic
     fun openLocalPlaylistFragment(
         fragmentManager: FragmentManager,
-        playlistId: Long, name: String?
+        playlistId: Long,
+        name: String?
     ) {
         defaultTransaction(fragmentManager)
             .replace(
-                R.id.fragment_holder, LocalPlaylistFragment.getInstance(
+                R.id.fragment_holder,
+                LocalPlaylistFragment.getInstance(
                     playlistId,
                     if (name == null) "" else name
                 )
@@ -672,7 +706,8 @@ object NavigationHelper {
     ////////////////////////////////////////////////////////////////////////// */
     @JvmStatic
     fun openSearch(
-        context: Context, serviceId: Int,
+        context: Context,
+        serviceId: Int,
         searchString: String?
     ) {
         val mIntent = Intent(context, MainActivity::class.java)
@@ -721,7 +756,9 @@ object NavigationHelper {
         title: String
     ) {
         val intent = getOpenIntent(
-            context, url, serviceId,
+            context,
+            url,
+            serviceId,
             LinkType.CHANNEL
         )
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -758,12 +795,14 @@ object NavigationHelper {
                     Localization.compatGetString(
                         context,
                         R.string.settings_layout_redesign_key
-                    ), false
+                    ),
+                    false
                 )
-        )
+        ) {
             SettingsV2Activity::class.java
-        else
+        } else {
             SettingsActivity::class.java
+        }
 
         val intent = Intent(context, settingsClass)
         context.startActivity(intent)
@@ -772,7 +811,8 @@ object NavigationHelper {
     @JvmStatic
     fun openDownloads(activity: Activity) {
         if (PermissionHelper.checkStoragePermissions(
-                activity, PermissionHelper.DOWNLOADS_REQUEST_CODE
+                activity,
+                PermissionHelper.DOWNLOADS_REQUEST_CODE
             )
         ) {
             val intent = Intent(activity, DownloadActivity::class.java)
@@ -798,8 +838,10 @@ object NavigationHelper {
     // Link handling
     ////////////////////////////////////////////////////////////////////////// */
     private fun getOpenIntent(
-        context: Context?, url: String?,
-        serviceId: Int, type: LinkType?
+        context: Context?,
+        url: String?,
+        serviceId: Int,
+        type: LinkType?
     ): Intent {
         val mIntent = Intent(context, MainActivity::class.java)
         mIntent.putExtra(KEY_SERVICE_ID, serviceId)
@@ -825,8 +867,10 @@ object NavigationHelper {
 
         if (linkType == LinkType.NONE) {
             throw ExtractionException(
-                ("Url not known to service. service=" + service
-                        + " url=" + url)
+                (
+                    "Url not known to service. service=" + service +
+                        " url=" + url
+                    )
             )
         }
 
@@ -855,7 +899,7 @@ object NavigationHelper {
     /**
      * Finish this `Activity` as well as all `Activities` running below it
      * and then start `MainActivity`.
-     * 
+     *
      * @param activity the activity to finish
      */
     @JvmStatic
