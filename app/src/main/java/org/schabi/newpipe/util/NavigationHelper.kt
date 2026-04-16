@@ -501,21 +501,8 @@ object NavigationHelper {
         playQueue: PlayQueue?,
         switchingPlayers: Boolean
     ) {
-        val autoPlay: Boolean
+        val autoPlay = determineAutoPlay(context, switchingPlayers)
         val playerType = type
-        if (playerType == null) {
-            // no player open
-            autoPlay = PlayerHelper.isAutoplayAllowedByUser(context)
-        } else if (switchingPlayers) {
-            // switching player to main player
-            autoPlay = isPlaying // keep play/pause state
-        } else if (playerType == PlayerType.MAIN) {
-            // opening new stream while already playing in main player
-            autoPlay = PlayerHelper.isAutoplayAllowedByUser(context)
-        } else {
-            // opening new stream while already playing in another player
-            autoPlay = false
-        }
 
         val onVideoDetailFragmentReady =
             object : RunnableWithVideoDetailFragment {
@@ -523,9 +510,6 @@ object NavigationHelper {
                     expandMainPlayer(detailFragment!!.requireActivity())
                     detailFragment.setAutoPlay(autoPlay)
                     if (switchingPlayers) {
-                        // Situation when user switches from players to main player. All needed data is
-                        // here, we can start watching (assuming newQueue equals playQueue).
-                        // Starting directly in fullscreen if the previous player type was popup.
                         detailFragment.openVideoPlayer(
                             playerType == PlayerType.POPUP ||
                                 PlayerHelper.isStartMainPlayerFullscreenEnabled(context)
@@ -541,17 +525,22 @@ object NavigationHelper {
         if (fragment is VideoDetailFragment && fragment.isVisible()) {
             onVideoDetailFragmentReady.run(fragment)
         } else {
-            // Specify no url here, otherwise the VideoDetailFragment will start loading the
-            // stream automatically if it's the first time it is being opened, but then
-            // onVideoDetailFragmentReady will kick in and start another loading process.
-            // See VideoDetailFragment.wasCleared() and its usage in doInitialLoadLogic().
             val instance = getInstance(serviceId, null, title, playQueue)
             instance.setAutoPlay(autoPlay)
-
             defaultTransaction(fragmentManager)
                 .replace(R.id.fragment_player_holder, instance)
                 .runOnCommit(Runnable { onVideoDetailFragmentReady.run(instance) })
                 .commit()
+        }
+    }
+
+    private fun determineAutoPlay(context: Context, switchingPlayers: Boolean): Boolean {
+        val playerType = type
+        return when {
+            playerType == null -> PlayerHelper.isAutoplayAllowedByUser(context)
+            switchingPlayers -> isPlaying
+            playerType == PlayerType.MAIN -> PlayerHelper.isAutoplayAllowedByUser(context)
+            else -> false
         }
     }
 
