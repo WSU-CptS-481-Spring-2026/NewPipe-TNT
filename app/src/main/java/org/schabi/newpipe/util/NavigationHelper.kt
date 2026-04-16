@@ -447,18 +447,18 @@ object NavigationHelper {
     @JvmStatic
     fun tryGotoSearchFragment(fragmentManager: FragmentManager): Boolean {
         if (MainActivity.DEBUG) {
-            for (i in 0..<fragmentManager.getBackStackEntryCount()) {
-                Log.d(
-                    "NavigationHelper",
-                    (
-                        "tryGoToSearchFragment() [" + i + "]" +
-                            " = [" + fragmentManager.getBackStackEntryAt(i) + "]"
-                        )
-                )
-            }
+            logBackStack(fragmentManager)
         }
-
         return fragmentManager.popBackStackImmediate(SEARCH_FRAGMENT_TAG, 0)
+    }
+
+    private fun logBackStack(fragmentManager: FragmentManager) {
+        for (i in 0..<fragmentManager.getBackStackEntryCount()) {
+            Log.d(
+                "NavigationHelper",
+                "tryGoToSearchFragment() [$i] = [${fragmentManager.getBackStackEntryAt(i)}]"
+            )
+        }
     }
 
     @JvmStatic
