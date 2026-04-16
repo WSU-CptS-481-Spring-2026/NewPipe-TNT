@@ -98,11 +98,7 @@ class PopupPlayerGestureListener(
         }
     }
 
-    private fun handleMultiDrag(event: MotionEvent): Boolean {
-        if (initPointerDistance == -1.0 || event.pointerCount != 2) {
-            return false
-        }
-
+    private fun isDragBeyondThreshold(event: MotionEvent) : Boolean {
         // get the movements of the fingers
         val firstPointerMove = hypot(
             event.getX(0) - initFirstPointerX.toDouble(),
@@ -115,7 +111,13 @@ class PopupPlayerGestureListener(
 
         // minimum threshold beyond which pinch gesture will work
         val minimumMove = ViewConfiguration.get(player.context).scaledTouchSlop
-        if (max(firstPointerMove, secPointerMove) <= minimumMove) {
+        return max(firstPointerMove, secPointerMove) <= minimumMove;
+    }
+
+    private fun handleMultiDrag(event: MotionEvent): Boolean {
+        if (initPointerDistance == -1.0
+            || event.pointerCount != 2
+            || isDragBeyondThreshold(event)) {
             return false
         }
 
@@ -162,24 +164,25 @@ class PopupPlayerGestureListener(
         velocityX: Float,
         velocityY: Float
     ): Boolean {
-        return if (player.popupPlayerSelected()) {
+        if (player.popupPlayerSelected()) {
             val absVelocityX = abs(velocityX)
             val absVelocityY = abs(velocityY)
-            if (absVelocityX.coerceAtLeast(absVelocityY) > TOSS_FLING_VELOCITY) {
-                if (absVelocityX > TOSS_FLING_VELOCITY) {
-                    playerUi.popupLayoutParams.x = velocityX.toInt()
-                }
-                if (absVelocityY > TOSS_FLING_VELOCITY) {
-                    playerUi.popupLayoutParams.y = velocityY.toInt()
-                }
-                playerUi.checkPopupPositionBounds()
-                playerUi.windowManager.updateViewLayout(binding.root, playerUi.popupLayoutParams)
-                return true
+
+            if (absVelocityX.coerceAtLeast(absVelocityY) <= TOSS_FLING_VELOCITY) {
+                return false
             }
-            return false
-        } else {
-            true
+
+            if (absVelocityX > TOSS_FLING_VELOCITY) {
+                playerUi.popupLayoutParams.x = velocityX.toInt()
+            }
+            if (absVelocityY > TOSS_FLING_VELOCITY) {
+                playerUi.popupLayoutParams.y = velocityY.toInt()
+            }
+            playerUi.checkPopupPositionBounds()
+            playerUi.windowManager.updateViewLayout(binding.root, playerUi.popupLayoutParams)
         }
+
+        return true
     }
 
     override fun onDownNotDoubleTapping(e: MotionEvent): Boolean {
@@ -217,8 +220,7 @@ class PopupPlayerGestureListener(
         if (initialEvent == null) {
             return false
         }
-
-        if (isResizing) {
+        else if (isResizing) {
             return super.onScroll(initialEvent, movingEvent, distanceX, distanceY)
         }
 
