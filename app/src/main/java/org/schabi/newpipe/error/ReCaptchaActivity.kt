@@ -20,6 +20,7 @@ import org.schabi.newpipe.databinding.ActivityRecaptchaBinding
 import org.schabi.newpipe.extractor.utils.Utils
 import org.schabi.newpipe.util.LogHandler
 import org.schabi.newpipe.util.ThemeHelper
+import androidx.core.content.edit
 
 /*
 * Created by beneth <bmauduit@beneth.fr> on 06.12.16.
@@ -117,9 +118,7 @@ class ReCaptchaActivity : AppCompatActivity() {
     private fun saveCookiesAndFinish() {
         // try to get cookies of unclosed page
         handleCookiesFromUrl(recaptchaBinding!!.reCaptchaWebView.getUrl())
-        if (MainActivity.DEBUG) {
-            Log.d(TAG, "saveCookiesAndFinish: foundCookies=$foundCookies")
-        }
+        LogHandler.LogInDebugMode(TAG, "saveCookiesAndFinish: foundCookies=$foundCookies")
 
         if (foundCookies.isNotEmpty()) {
             // save cookies to preferences
@@ -127,7 +126,7 @@ class ReCaptchaActivity : AppCompatActivity() {
                 applicationContext
             )
             val key: String = applicationContext.getString(R.string.recaptcha_cookies_key)
-            prefs.edit().putString(key, foundCookies).apply()
+            prefs.edit { putString(key, foundCookies) }
 
             // give cookies to Downloader class
             DownloaderImpl.getInstance().setCookie(RECAPTCHA_COOKIES_KEY, foundCookies)
@@ -139,7 +138,7 @@ class ReCaptchaActivity : AppCompatActivity() {
 
         val intent = Intent(this, MainActivity::class.java)
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-        NavUtils.navigateUpTo(this, intent)
+        navigateUpTo(intent);
     }
 
     private fun handleCookiesFromUrl(url: String?) {
@@ -153,12 +152,12 @@ class ReCaptchaActivity : AppCompatActivity() {
         var cookies = CookieManager.getInstance().getCookie(url)
         handleCookies(cookies)
 
-        cookies = findCookiesInURL(url);
+        cookies = findCookiesInUrl(url);
         handleCookies(cookies);
     }
 
     // sometimes cookies are inside the url
-    private fun findCookiesInURL(url: String) : String? {
+    private fun findCookiesInUrl(url: String) : String? {
 
         val abuseStart = url.indexOf("google_abuse=")
         if (abuseStart != -1) {
