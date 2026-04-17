@@ -25,7 +25,7 @@ import org.schabi.newpipe.util.ThemeHelper
 * Created by beneth <bmauduit@beneth.fr> on 06.12.16.
 *
 * Copyright (C) Christian Schabesberger 2015 <chris.schabesberger@mailbox.org>
-* ReCaptchaActivity.java is part of NewPipe.
+* ReCaptchaActivity.kt is part of NewPipe.
 *
 * NewPipe is free software: you can redistribute it and/or modify
 * it under the terms of the GNU General Public License as published by
@@ -67,9 +67,8 @@ class ReCaptchaActivity : AppCompatActivity() {
                 view: WebView?,
                 request: WebResourceRequest
             ): Boolean {
-                if (MainActivity.DEBUG) {
-                    Log.d(TAG, "shouldOverrideUrlLoading: url=" + request.url.toString())
-                }
+                LogHandler.LogInDebugMode(TAG,
+                    "shouldOverrideUrlLoading: url= $request.url.toString()");
 
                 handleCookiesFromUrl(request.url.toString())
                 return false
@@ -135,7 +134,7 @@ class ReCaptchaActivity : AppCompatActivity() {
             setResult(RESULT_OK)
         }
 
-        // Navigate to blank page (unloads youtube to prevent background playback)
+        // Navigate to blank page (unloads YouTube to prevent background playback)
         recaptchaBinding!!.reCaptchaWebView.loadUrl("about:blank")
 
         val intent = Intent(this, MainActivity::class.java)
@@ -151,22 +150,30 @@ class ReCaptchaActivity : AppCompatActivity() {
             return
         }
 
-        val cookies = CookieManager.getInstance().getCookie(url)
+        var cookies = CookieManager.getInstance().getCookie(url)
         handleCookies(cookies)
 
-        // sometimes cookies are inside the url
+        cookies = findCookiesInURL(url);
+        handleCookies(cookies);
+    }
+
+    // sometimes cookies are inside the url
+    private fun findCookiesInURL(url: String) : String? {
+
         val abuseStart = url.indexOf("google_abuse=")
         if (abuseStart != -1) {
             val abuseEnd = url.indexOf("+path")
 
             try {
-                handleCookies(Utils.decodeUrlUtf8(url.substring(abuseStart + 13, abuseEnd)))
+                return Utils.decodeUrlUtf8(url.substring(abuseStart + 13, abuseEnd))
             } catch (e: StringIndexOutOfBoundsException) {
                 LogHandler.LogInDebugMode(TAG,
                     "handleCookiesFromUrl: invalid google abuse starting at "
                             + abuseStart + " and ending at " + abuseEnd + " for url " + url)
             }
         }
+
+        return null;
     }
 
     private fun handleCookies(cookies: String?) {
