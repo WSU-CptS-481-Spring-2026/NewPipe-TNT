@@ -10,6 +10,7 @@ import android.webkit.CookieManager
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.NavUtils
 import androidx.preference.PreferenceManager
@@ -45,8 +46,32 @@ class ReCaptchaActivity : AppCompatActivity() {
     private var recaptchaBinding: ActivityRecaptchaBinding? = null
     private var foundCookies: String = ""
 
+    private  val webViewClient = object : WebViewClient() {
+        override fun shouldOverrideUrlLoading(
+            view: WebView?,
+            request: WebResourceRequest
+        ): Boolean {
+            LogHandler.LogInDebugMode(TAG,
+                "shouldOverrideUrlLoading: url= $request.url.toString()");
+
+            handleCookiesFromUrl(request.url.toString())
+            return false
+        }
+
+        override fun onPageFinished(view: WebView?, url: String?) {
+            super.onPageFinished(view, url)
+            handleCookiesFromUrl(url)
+        }
+    }
+    private val onBackPressedCallback = object : OnBackPressedCallback(true) {
+        override fun handleOnBackPressed() {
+            saveCookiesAndFinish()
+        }
+    }
+
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
+        onBackPressedDispatcher.addCallback(this, onBackPressedCallback)
         ThemeHelper.setTheme(this)
         super.onCreate(savedInstanceState)
 
@@ -63,23 +88,7 @@ class ReCaptchaActivity : AppCompatActivity() {
         webSettings.javaScriptEnabled = true;
         webSettings.setUserAgentString(DownloaderImpl.USER_AGENT)
 
-        recaptchaBinding!!.reCaptchaWebView.setWebViewClient(object : WebViewClient() {
-            override fun shouldOverrideUrlLoading(
-                view: WebView?,
-                request: WebResourceRequest
-            ): Boolean {
-                LogHandler.LogInDebugMode(TAG,
-                    "shouldOverrideUrlLoading: url= $request.url.toString()");
-
-                handleCookiesFromUrl(request.url.toString())
-                return false
-            }
-
-            override fun onPageFinished(view: WebView?, url: String?) {
-                super.onPageFinished(view, url)
-                handleCookiesFromUrl(url)
-            }
-        })
+        recaptchaBinding!!.reCaptchaWebView.setWebViewClient(webViewClient)
 
         // cleaning cache, history and cookies from webView
         recaptchaBinding!!.reCaptchaWebView.clearCache(true)
@@ -90,6 +99,8 @@ class ReCaptchaActivity : AppCompatActivity() {
     }
 
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
+
+
         menuInflater.inflate(R.menu.menu_recaptcha, menu)
 
         val actionBar = supportActionBar;
@@ -100,11 +111,6 @@ class ReCaptchaActivity : AppCompatActivity() {
         }
 
         return true
-    }
-
-    @SuppressLint("MissingSuperCall") // saveCookiesAndFinish method handles back navigation
-    override fun onBackPressed() {
-        saveCookiesAndFinish()
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
