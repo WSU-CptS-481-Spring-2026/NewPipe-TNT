@@ -8,7 +8,9 @@ import android.view.MenuInflater
 import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.view.MenuProvider
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.Lifecycle
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.disposables.Disposable
@@ -25,7 +27,7 @@ import org.schabi.newpipe.local.subscription.SubscriptionManager
  */
 class NotificationModeConfigFragment : Fragment() {
     private var _binding: FragmentChannelsNotificationsBinding? = null
-    private val binding get() = _binding!!
+    private val binding get() = checkNotNull(_binding)
 
     private val disposables = CompositeDisposable()
     private var loader: Disposable? = null
@@ -35,11 +37,6 @@ class NotificationModeConfigFragment : Fragment() {
     override fun onAttach(context: Context) {
         super.onAttach(context)
         subscriptionManager = SubscriptionManager(context)
-    }
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setHasOptionsMenu(true)
     }
 
     override fun onCreateView(
@@ -59,10 +56,36 @@ class NotificationModeConfigFragment : Fragment() {
             updateNotificationMode(adapter.currentList[position], mode)
         }
         binding.recyclerView.adapter = adapter
+
+        setupMenu()
+
         loader?.dispose()
         loader = subscriptionManager.subscriptions()
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe(adapter::update)
+    }
+
+    private fun setupMenu() {
+        requireActivity().addMenuProvider(
+            object : MenuProvider {
+                override fun onCreateMenu(menu: Menu, menuInflater: MenuInflater) {
+                    menuInflater.inflate(R.menu.menu_notifications_channels, menu)
+                }
+
+                override fun onMenuItemSelected(menuItem: MenuItem): Boolean {
+                    return when (menuItem.itemId) {
+                        R.id.action_toggle_all -> {
+                            toggleAll()
+                            true
+                        }
+
+                        else -> false
+                    }
+                }
+            },
+            viewLifecycleOwner,
+            Lifecycle.State.RESUMED
+        )
     }
 
     override fun onDestroyView() {
@@ -75,24 +98,6 @@ class NotificationModeConfigFragment : Fragment() {
     override fun onDestroy() {
         disposables.dispose()
         super.onDestroy()
-    }
-
-    @Deprecated("Deprecated in Java")
-    override fun onCreateOptionsMenu(menu: Menu, inflater: MenuInflater) {
-        super.onCreateOptionsMenu(menu, inflater)
-        inflater.inflate(R.menu.menu_notifications_channels, menu)
-    }
-
-    @Deprecated("Deprecated in Java")
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        return when (item.itemId) {
-            R.id.action_toggle_all -> {
-                toggleAll()
-                true
-            }
-
-            else -> super.onOptionsItemSelected(item)
-        }
     }
 
     private fun toggleAll() {
