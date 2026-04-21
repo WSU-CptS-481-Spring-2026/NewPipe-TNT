@@ -44,38 +44,48 @@ class SecondaryStreamHelper<T : Stream?>(
             audioStreams: MutableList<AudioStream?>,
             videoStream: VideoStream
         ): AudioStream? {
-            val mediaFormat = videoStream.getFormat()
-
-            if (mediaFormat == MediaFormat.WEBM) {
-                return audioStreams
-                    .stream()
-                    .filter { audioStream: AudioStream? ->
-                        audioStream!!.getFormat() == MediaFormat.WEBMA ||
-                            audioStream.getFormat() == MediaFormat.WEBMA_OPUS
-                    }
-                    .max(
-                        ListHelper.getAudioFormatComparator(
-                            MediaFormat.WEBMA,
-                            ListHelper.isLimitingDataUsage(context)
-                        )
-                    )
-                    .orElse(null)
-            } else if (mediaFormat == MediaFormat.MPEG_4) {
-                return audioStreams
-                    .stream()
-                    .filter { audioStream: AudioStream? ->
-                        audioStream!!.getFormat() == MediaFormat.M4A
-                    }
-                    .max(
-                        ListHelper.getAudioFormatComparator(
-                            MediaFormat.M4A,
-                            ListHelper.isLimitingDataUsage(context)
-                        )
-                    )
-                    .orElse(null)
-            } else {
-                return null
+            return when (videoStream.getFormat()) {
+                MediaFormat.WEBM -> selectWebmAudio(context, audioStreams)
+                MediaFormat.MPEG_4 -> selectMp4Audio(context, audioStreams)
+                else -> null
             }
+        }
+
+        private fun selectWebmAudio(
+            context: Context,
+            audioStreams: MutableList<AudioStream?>
+        ): AudioStream? {
+            return audioStreams
+                .stream()
+                .filter { audioStream: AudioStream? ->
+                    audioStream!!.getFormat() == MediaFormat.WEBMA ||
+                        audioStream.getFormat() == MediaFormat.WEBMA_OPUS
+                }
+                .max(
+                    ListHelper.getAudioFormatComparator(
+                        MediaFormat.WEBMA,
+                        ListHelper.isLimitingDataUsage(context)
+                    )
+                )
+                .orElse(null)
+        }
+
+        private fun selectMp4Audio(
+            context: Context,
+            audioStreams: MutableList<AudioStream?>
+        ): AudioStream? {
+            return audioStreams
+                .stream()
+                .filter { audioStream: AudioStream? ->
+                    audioStream!!.getFormat() == MediaFormat.M4A
+                }
+                .max(
+                    ListHelper.getAudioFormatComparator(
+                        MediaFormat.M4A,
+                        ListHelper.isLimitingDataUsage(context)
+                    )
+                )
+                .orElse(null)
         }
     }
 }
