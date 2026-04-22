@@ -5,7 +5,6 @@ import android.content.SharedPreferences
 import android.icu.text.CompactDecimalFormat
 import android.os.Build
 import android.text.BidiFormatter
-import android.text.TextUtils
 import android.text.format.DateUtils
 import android.util.Log
 import androidx.annotation.PluralsRes
@@ -24,7 +23,6 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import java.util.Locale
-import java.util.stream.Collectors
 import kotlin.math.max
 import org.ocpsoft.prettytime.PrettyTime
 import org.ocpsoft.prettytime.units.Decade
@@ -55,10 +53,11 @@ object Localization {
      * @param resId the string resource to resolve
      * @return the resolved string
      */
+    @JvmStatic
     fun compatGetString(context: Context, @StringRes resId: Int): String {
         return try {
             ContextCompat.getString(context, resId)
-        } catch (e: Throwable) {
+        } catch (_: Throwable) {
             context.getString(resId)
         }
     }
@@ -70,6 +69,7 @@ object Localization {
      * @param formatArgs the formatting arguments
      * @return the resolved string
      */
+    @JvmStatic
     fun compatGetString(
         context: Context,
         @StringRes resId: Int,
@@ -79,16 +79,18 @@ object Localization {
             // ContextCompat.getString() with formatArgs does not exist, so we just
             // replicate its source code but with formatArgs
             ContextCompat.getContextForLanguage(context).getString(resId, *formatArgs)
-        } catch (e: Throwable) {
+        } catch (_: Throwable) {
             context.getString(resId, *formatArgs)
         }
     }
 
+    @JvmStatic
     fun concatenateStrings(vararg strings: String?): String {
-        return Localization.concatenateStrings(DOT_SEPARATOR, *strings)
+        return concatenateStrings(DOT_SEPARATOR, strings.toMutableList())
     }
 
-    fun concatenateStrings(delimiter: String, vararg strings: String?): String {
+    @JvmStatic
+    fun concatenateStrings(delimiter: String, strings: MutableList<String?>): String {
         return strings.filterNot { it.isNullOrEmpty() }.joinToString(delimiter)
     }
 
@@ -101,17 +103,20 @@ object Localization {
      * @param plainName username, with an optional leading `@`
      * @return a usernames that can include RTL-characters
      */
+    @JvmStatic
     fun localizeUserName(plainName: String?): String {
         return BidiFormatter.getInstance().unicodeWrap(plainName)
     }
 
+    @JvmStatic
     fun getPreferredLocalization(
         context: Context
     ): org.schabi.newpipe.extractor.localization.Localization {
         return org.schabi.newpipe.extractor.localization.Localization
-            .fromLocale(Localization.getPreferredLocale(context) ?: Locale.getDefault())
+            .fromLocale(getPreferredLocale(context) ?: Locale.getDefault())
     }
 
+    @JvmStatic
     fun getPreferredContentCountry(context: Context): ContentCountry {
         val contentCountry = PreferenceManager.getDefaultSharedPreferences(context)
             .getString(
@@ -124,29 +129,35 @@ object Localization {
         return ContentCountry(contentCountry!!)
     }
 
+    @JvmStatic
     fun getPreferredLocale(context: Context): Locale? {
-        return Localization.getLocaleFromPrefs(context, R.string.content_language_key)
+        return getLocaleFromPrefs(context, R.string.content_language_key)
     }
 
+    @JvmStatic
     fun getAppLocale(): Locale {
         val customLocale = AppCompatDelegate.getApplicationLocales().get(0)
         return customLocale ?: Locale.getDefault()
     }
 
+    @JvmStatic
     fun localizeNumber(number: Long): String {
         return localizeNumber(number.toDouble())
     }
 
+    @JvmStatic
     fun localizeNumber(number: Double): String {
         return NumberFormat.getInstance(getAppLocale()).format(number)
     }
 
+    @JvmStatic
     fun formatDate(offsetDateTime: OffsetDateTime): String {
         return DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
             .withLocale(getAppLocale())
             .format(offsetDateTime.atZoneSameInstant(ZoneId.systemDefault()))
     }
 
+    @JvmStatic
     fun localizeUploadDate(
         context: Context,
         offsetDateTime: OffsetDateTime
@@ -154,8 +165,9 @@ object Localization {
         return context.getString(R.string.upload_date_text, formatDate(offsetDateTime))
     }
 
+    @JvmStatic
     fun localizeViewCount(context: Context, viewCount: Long): String {
-        return Localization.getQuantity(
+        return getQuantity(
             context,
             R.plurals.views,
             R.string.no_views,
@@ -164,6 +176,7 @@ object Localization {
         )
     }
 
+    @JvmStatic
     fun localizeStreamCount(
         context: Context,
         streamCount: Long
@@ -185,6 +198,7 @@ object Localization {
         }
     }
 
+    @JvmStatic
     fun localizeStreamCountMini(
         context: Context,
         streamCount: Long
@@ -197,6 +211,7 @@ object Localization {
         }
     }
 
+    @JvmStatic
     fun localizeWatchingCount(
         context: Context,
         watchingCount: Long
@@ -210,6 +225,7 @@ object Localization {
         )
     }
 
+    @JvmStatic
     fun shortCount(context: Context, count: Long): String {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             CompactDecimalFormat.getInstance(
@@ -258,6 +274,7 @@ object Localization {
         )
     }
 
+    @JvmStatic
     fun listeningCount(context: Context, listeningCount: Long): String {
         return getQuantity(
             context,
@@ -268,6 +285,7 @@ object Localization {
         )
     }
 
+    @JvmStatic
     fun shortWatchingCount(
         context: Context,
         watchingCount: Long
@@ -281,6 +299,7 @@ object Localization {
         )
     }
 
+    @JvmStatic
     fun shortViewCount(context: Context, viewCount: Long): String {
         return getQuantity(
             context,
@@ -291,6 +310,7 @@ object Localization {
         )
     }
 
+    @JvmStatic
     fun shortSubscriberCount(
         context: Context,
         subscriberCount: Long
@@ -304,6 +324,7 @@ object Localization {
         )
     }
 
+    @JvmStatic
     fun downloadCount(context: Context, downloadCount: Int): String {
         return getQuantity(
             context,
@@ -314,6 +335,7 @@ object Localization {
         )
     }
 
+    @JvmStatic
     fun deletedDownloadCount(
         context: Context,
         deletedCount: Int
@@ -333,6 +355,7 @@ object Localization {
      * @return if `likeCount` is smaller than `0`, the string `"-"`, otherwise
      * the result of calling [.shortCount] on the like count
      */
+    @JvmStatic
     fun likeCount(context: Context, likeCount: Int): String {
         return if (likeCount < 0) {
             "-"
@@ -347,6 +370,7 @@ object Localization {
      * @param duration the duration in seconds
      * @return a formatted duration String or `00:00` if the duration is zero.
      */
+    @JvmStatic
     fun getDurationString(duration: Long): String {
         return DateUtils.formatElapsedTime(max(duration, 0))
     }
@@ -360,6 +384,7 @@ object Localization {
      * @param showDurationPrefix whether the duration-prefix shall be shown
      * @return a formatted duration String or `00:00` if the duration is zero.
      */
+    @JvmStatic
     fun getDurationString(
         duration: Long,
         isDurationComplete: Boolean,
@@ -383,6 +408,7 @@ object Localization {
      * @param durationInSecs an amount of seconds.
      * @return duration in a human readable string.
      */
+    @JvmStatic
     fun localizeDuration(
         context: Context,
         durationInSecs: Int
@@ -428,6 +454,7 @@ object Localization {
      * @param track   an [AudioStream] of the track
      * @return the localized name of the audio track
      */
+    @JvmStatic
     fun audioTrackName(context: Context, track: AudioStream): String? {
         val name = getTrackName(context, track)
 
@@ -462,16 +489,19 @@ object Localization {
     /*//////////////////////////////////////////////////////////////////////////
     // Pretty Time
     ////////////////////////////////////////////////////////////////////////// */
+    @JvmStatic
     fun initPrettyTime(time: PrettyTime) {
         prettyTime = time
         // Do not use decades as YouTube doesn't either.
         prettyTime!!.removeUnit<Decade?>(Decade::class.java)
     }
 
+    @JvmStatic
     fun resolvePrettyTime(): PrettyTime {
         return PrettyTime(getAppLocale())
     }
 
+    @JvmStatic
     fun relativeTime(offsetDateTime: OffsetDateTime): String? {
         return prettyTime!!.formatUnrounded(offsetDateTime)
     }
@@ -487,6 +517,7 @@ object Localization {
      * `parsed != null` and the relevant setting is enabled, `textual` will
      * be appended to the returned string for debugging purposes.
      */
+    @JvmStatic
     fun relativeTimeOrTextual(
         context: Context?,
         parsed: DateWrapper?,
@@ -552,8 +583,8 @@ object Localization {
         // or some language have some specific rule... then we have to change it)
         val safeCount = MathUtils.clamp(
             count,
-            Int.Companion.MIN_VALUE.toLong(),
-            Int.Companion.MAX_VALUE.toLong()
+            Int.MIN_VALUE.toLong(),
+            Int.MAX_VALUE.toLong()
         ).toInt()
         return context.getResources().getQuantityString(pluralId, safeCount, formattedCount)
     }
@@ -564,6 +595,7 @@ object Localization {
     // use the public per-app language APIs instead.
     // For reference, see
     // https://android-developers.googleblog.com/2022/11/per-app-language-preferences-part-1.html
+    @JvmStatic
     fun migrateAppLanguageSettingIfNecessary(context: Context) {
         val sp = PreferenceManager.getDefaultSharedPreferences(context)
         val appLanguageKey = context.getString(R.string.app_language_key)
@@ -587,7 +619,6 @@ object Localization {
                 context.getString(R.string.default_localization_key)
 
             setAppLanguage(
-                context,
                 appLanguageValue,
                 appLanguageDefaultValue
             )
@@ -603,13 +634,13 @@ object Localization {
         }
     }
 
-    private fun setAppLanguage(context: Context, language: String, defaultLanguage: String) {
+    private fun setAppLanguage(language: String, defaultLanguage: String) {
         if (language != defaultLanguage) {
             try {
                 AppCompatDelegate.setApplicationLocales(
                     LocaleListCompat.forLanguageTags(language)
                 )
-            } catch (e: RuntimeException) {
+            } catch (_: RuntimeException) {
                 Log.e(
                     TAG,
                     "Failed to migrate previous custom app language " +
