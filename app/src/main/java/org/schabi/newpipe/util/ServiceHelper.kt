@@ -10,6 +10,7 @@ import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import androidx.core.content.edit
 import androidx.preference.PreferenceManager
+import com.grack.nanojson.JsonObject
 import com.grack.nanojson.JsonParser
 import java.util.concurrent.TimeUnit
 import org.schabi.newpipe.R
@@ -145,20 +146,25 @@ object ServiceHelper {
 
     fun initService(context: Context, serviceId: Int) {
         if (serviceId == ServiceList.PeerTube.serviceId) {
-            val sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context)
-            val json = sharedPreferences.getString(
-                context.getString(R.string.peertube_selected_instance_key),
-                null
-            ) ?: return
-
-            val jsonObject = runCatching { JsonParser.`object`().from(json) }
-                .getOrElse { return@initService }
+            val jsonObject = getSharedPrefsJsonObject(context) ?: return
 
             ServiceList.PeerTube.instance = PeertubeInstance(
                 jsonObject.getString("url"),
                 jsonObject.getString("name")
             )
         }
+    }
+
+    private fun getSharedPrefsJsonObject(context: Context): JsonObject? = runCatching {
+        JsonParser.`object`().from(getSharedPrefsJsonString(context))
+    }.getOrElse { return@getSharedPrefsJsonObject null }
+
+    private fun getSharedPrefsJsonString(context: Context): String? {
+        val sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context)
+        return sharedPreferences.getString(
+            context.getString(R.string.peertube_selected_instance_key),
+            null
+        )
     }
 
     @JvmStatic
